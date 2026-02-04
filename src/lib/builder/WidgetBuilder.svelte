@@ -18,7 +18,7 @@
   // Preview Element
   let previewContainer: HTMLElement | null = $state(null);
   let widgetInstance: NostrFeedWidgetType | null = null;
-  let NostrFeedWidget: typeof NostrFeedWidgetType | null = null;
+  let NostrFeedWidget: typeof NostrFeedWidgetType | null = $state(null);
   
   // Generated Code
   let generatedCode = $state('');
@@ -54,9 +54,7 @@
   }
   
   // Generate HTML Code
-  function generateCode(): string {
-    const config = parseFormState();
-    
+  function generateCode(config: WidgetConfig): string {
     const attributes: string[] = [];
     
     if (config.relays.length > 0) {
@@ -103,25 +101,12 @@
   }
   
   // Update Preview
-  function updatePreview(): void {
-    if (!NostrFeedWidget) {
-      console.log('[WidgetBuilder] NostrFeedWidget not loaded yet');
-      return;
-    }
-    
-    if (!previewContainer) {
-      console.log('[WidgetBuilder] Preview container not ready');
-      return;
-    }
-    
-    const config = parseFormState();
-    console.log('[WidgetBuilder] Creating widget with config:', config);
-    
+  function updatePreview(config: WidgetConfig, widgetCtor: typeof NostrFeedWidgetType, container: HTMLElement): void {
     if (widgetInstance) {
       widgetInstance.remove();
     }
     
-    widgetInstance = new NostrFeedWidget();
+    widgetInstance = new widgetCtor();
     widgetInstance.setAttribute('relays', config.relays.join(','));
     widgetInstance.setAttribute('kinds', config.kinds.join(','));
     if (config.authors.length > 0) {
@@ -145,11 +130,7 @@
     widgetInstance.setAttribute('theme', config.theme);
     widgetInstance.setAttribute('maxItems', String(config.maxItems));
     
-    if (previewContainer) {
-      previewContainer.appendChild(widgetInstance);
-    }
-    
-    generatedCode = generateCode();
+    container.appendChild(widgetInstance);
   }
   
   // Copy to Clipboard
@@ -163,7 +144,13 @@
   
   // Update on state change
   $effect(() => {
-    updatePreview();
+    const config = parseFormState();
+    generatedCode = generateCode(config);
+
+    const widgetCtor = NostrFeedWidget;
+    const container = previewContainer;
+    if (!widgetCtor || !container) return;
+    updatePreview(config, widgetCtor, container);
   });
   
   // Initial setup
@@ -173,7 +160,7 @@
     const module = await import('../widget/nostr-feed.js');
     NostrFeedWidget = module.NostrFeedWidget;
     console.log('[WidgetBuilder] NostrFeedWidget loaded');
-    updatePreview();
+    // Vorschau wird per $effect aktualisiert
   });
 </script>
 
