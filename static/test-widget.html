@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nostr Widget Test</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Nostr Widget Test</h1>
+    
+    <nostr-feed 
+        relays="wss://relay.damus.io,wss://relay.edufeed.org"
+        kinds="30142,31922,1,30029,0"
+        maxItems="20"
+        showSearch="true"
+        showCategories="true"
+        showAuthor="true"
+        theme="light"
+    ></nostr-feed>
+
+    <script type="module">
+        console.log('[Test] Loading widget...');
+        
+        // Import the widget
+        import('/src/lib/widget/nostr-feed.js').then(module => {
+            console.log('[Test] Widget loaded:', module);
+        }).catch(err => {
+            console.error('[Test] Failed to load widget:', err);
+        });
+    </script>
+</body>
+</html>
