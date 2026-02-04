@@ -142,6 +142,8 @@ export const preview = $state<PreviewState>({
 - [ ] Relay URL Validator
 - [ ] Widget Config to URL Params
 - [ ] Widget Config Serializer
+- [x] Konfiguration im localStorage speichern (Persistenz)
+- [x] Apply/Auto-Vorschau (debounced)
 
 ---
 
