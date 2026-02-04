@@ -322,7 +322,7 @@
       </div>
       
       <div class="form-group">
-        <label for="authors">Autoren (npubs, kommasepariert)</label>
+        <label for="authors">Autoren (npub oder hex, kommasepariert)</label>
         <input
           type="text"
           id="authors"

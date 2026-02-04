@@ -10,6 +10,7 @@
 - [ ] Grid-Darstellung mit CSS
 - [ ] Suche nach Titel/Summary
 - [ ] Profile-Modal
+- [x] Autoren: `npub` → hex (NIP-19) für Relay-Filter
 - [ ] **Unit Tests**: Nostr Client, Event Parser (AMB)
 
 ### Woche 3-4: Builder App + Tests

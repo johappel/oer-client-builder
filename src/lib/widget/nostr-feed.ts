@@ -8,6 +8,7 @@ import type { WidgetConfig, ParsedEvent, ProfileMetadata } from '../nostr/types.
 import { NostrClient } from '../nostr/client.js';
 import { parseEvent, enrichWithProfiles, extractProfiles } from '../nostr/parser.js';
 import { applyTwoLevelFilter, createFilterConfig, extractCategories, extractAuthors } from '../nostr/filter.js';
+import { normalizePubkey } from '../nostr/nip19.js';
 
 const TEMPLATE = document.createElement('template');
 TEMPLATE.innerHTML = `
@@ -395,7 +396,13 @@ export class NostrFeedWidget extends HTMLElement {
   private parseConfig(): WidgetConfig {
     const relays = this.getAttribute('relays')?.split(',').map(r => r.trim()) || [];
     const kinds = (this.getAttribute('kinds')?.split(',').map(k => parseInt(k.trim(), 10)) || [30142, 31922, 1, 30029, 0]) as any;
-    const authors = this.getAttribute('authors')?.split(',').map(a => a.trim()) || [];
+    const rawAuthors = this.getAttribute('authors')?.split(',').map(a => a.trim()).filter(Boolean) || [];
+    const authors = rawAuthors
+      .map((a) => normalizePubkey(a))
+      .filter((a): a is string => Boolean(a));
+    if (rawAuthors.length > 0 && authors.length === 0) {
+      console.warn('[NostrFeedWidget] authors attribute provided but none could be parsed (expected hex or npub).', rawAuthors);
+    }
     const tagsAttr = this.getAttribute('tags');
     const tags: string[][] = tagsAttr ? JSON.parse(tagsAttr) : [];
     const search = this.getAttribute('search') || '';

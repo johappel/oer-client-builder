@@ -138,7 +138,7 @@ export const preview = $state<PreviewState>({
 ```
 
 ### 3.4 Utilities
-- [ ] Npub Validator
+- [x] Npub Validator / NIP-19 Converter (npub → hex)
 - [ ] Relay URL Validator
 - [ ] Widget Config to URL Params
 - [ ] Widget Config Serializer
