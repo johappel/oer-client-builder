@@ -11,7 +11,7 @@
 
 #### 2. Nostr Bibliothek (`src/lib/nostr/`)
 - **types.ts**: Alle Nostr Event-Typen definiert (Kind 0, 1, 30023, 30029, 30142, 31922, 31923)
-- **client.ts**: WebSocket-basierter Client mit Multi-Relay Support
+- **client.ts**: WebSocket-basierter Client mit Multi-Relay Support (inkl. Subscription-Flush bei Connect + optionalem Debug-Logging)
 - **parser.ts**: AMB-NIP, NIP-52, NIP-23 Parser
 - **filter.ts**: Two-Level Filtering Engine
 
@@ -25,9 +25,10 @@
 
 #### 4. Widget Builder App (`src/lib/builder/`)
 - Formular zur Widget-Konfiguration
-- Live-Vorschau
+- Live-Vorschau (Apply/Auto-Preview)
 - HTML-Code Generierung
 - Copy-to-Clipboard
+- Persistente Formular-Einstellungen via localStorage
 
 ### Technische Herausforderungen & Lösungen
 

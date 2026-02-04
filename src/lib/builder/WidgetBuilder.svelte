@@ -3,22 +3,53 @@
   import type { WidgetConfig } from '../nostr/types.js';
   import type { NostrFeedWidget as NostrFeedWidgetType } from '../widget/nostr-feed.js';
   
+  const STORAGE_KEY = 'oer-client-builder:widget-builder-form:v1';
+  const DEFAULT_FORM_STATE: {
+    relays: string;
+    authors: string;
+    tags: string;
+    search: string;
+    kinds: string;
+    maxItems: string;
+    showSearch: boolean;
+    showCategories: boolean;
+    showAuthor: boolean;
+    theme: string;
+    autoPreview: boolean;
+  } = {
+    relays: 'wss://relay.edufeed.org,wss://relay-rpi.edufeed.org,wss://amb-relay.edufeed.org',
+    authors: '',
+    tags: '[]',
+    search: '',
+    kinds: '30142,31922,1,30029,0',
+    maxItems: '50',
+    showSearch: true,
+    showCategories: true,
+    showAuthor: true,
+    theme: 'auto',
+    autoPreview: false
+  };
+
   // Form State mit Svelte 5 Runes
-  let relays = $state('wss://relay.edufeed.org,wss://relay-rpi.edufeed.org,wss://amb-relay.edufeed.org');
-  let authors = $state('');
-  let tags = $state('[]');
-  let search = $state('');
-  let kinds = $state('30142,31922,1,30029,0');
-  let maxItems = $state('50');
-  let showSearch = $state(true);
-  let showCategories = $state(true);
-  let showAuthor = $state(true);
-  let theme = $state('auto');
+  let relays = $state(DEFAULT_FORM_STATE.relays);
+  let authors = $state(DEFAULT_FORM_STATE.authors);
+  let tags = $state(DEFAULT_FORM_STATE.tags);
+  let search = $state(DEFAULT_FORM_STATE.search);
+  let kinds = $state(DEFAULT_FORM_STATE.kinds);
+  let maxItems = $state(DEFAULT_FORM_STATE.maxItems);
+  let showSearch = $state(DEFAULT_FORM_STATE.showSearch);
+  let showCategories = $state(DEFAULT_FORM_STATE.showCategories);
+  let showAuthor = $state(DEFAULT_FORM_STATE.showAuthor);
+  let theme = $state(DEFAULT_FORM_STATE.theme);
+  let autoPreview = $state(DEFAULT_FORM_STATE.autoPreview);
+
+  let isClient = $state(false);
   
   // Preview Element
   let previewContainer: HTMLElement | null = $state(null);
   let widgetInstance: NostrFeedWidgetType | null = null;
   let NostrFeedWidget: typeof NostrFeedWidgetType | null = $state(null);
+  let appliedConfig = $state<WidgetConfig>(parseFormState());
   
   // Generated Code
   let generatedCode = $state('');
@@ -51,6 +82,73 @@
       theme: theme as 'light' | 'dark' | 'auto',
       language: 'de'
     };
+  }
+
+  type StoredFormState = {
+    relays?: string;
+    authors?: string;
+    tags?: string;
+    search?: string;
+    kinds?: string;
+    maxItems?: string;
+    showSearch?: boolean;
+    showCategories?: boolean;
+    showAuthor?: boolean;
+    theme?: string;
+    autoPreview?: boolean;
+  };
+
+  function readStoredFormState(): StoredFormState | null {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as StoredFormState;
+    } catch {
+      return null;
+    }
+  }
+
+  function clearStoredFormState(): void {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  }
+
+  function applyStoredFormState(stored: StoredFormState): void {
+    if (typeof stored.relays === 'string') relays = stored.relays;
+    if (typeof stored.authors === 'string') authors = stored.authors;
+    if (typeof stored.tags === 'string') tags = stored.tags;
+    if (typeof stored.search === 'string') search = stored.search;
+    if (typeof stored.kinds === 'string') kinds = stored.kinds;
+    if (typeof stored.maxItems === 'string') maxItems = stored.maxItems;
+    if (typeof stored.showSearch === 'boolean') showSearch = stored.showSearch;
+    if (typeof stored.showCategories === 'boolean') showCategories = stored.showCategories;
+    if (typeof stored.showAuthor === 'boolean') showAuthor = stored.showAuthor;
+    if (typeof stored.theme === 'string') theme = stored.theme;
+    if (typeof stored.autoPreview === 'boolean') autoPreview = stored.autoPreview;
+  }
+
+  function applyPreview(): void {
+    appliedConfig = parseFormState();
+  }
+
+  function resetForm(): void {
+    relays = DEFAULT_FORM_STATE.relays;
+    authors = DEFAULT_FORM_STATE.authors;
+    tags = DEFAULT_FORM_STATE.tags;
+    search = DEFAULT_FORM_STATE.search;
+    kinds = DEFAULT_FORM_STATE.kinds;
+    maxItems = DEFAULT_FORM_STATE.maxItems;
+    showSearch = DEFAULT_FORM_STATE.showSearch;
+    showCategories = DEFAULT_FORM_STATE.showCategories;
+    showAuthor = DEFAULT_FORM_STATE.showAuthor;
+    theme = DEFAULT_FORM_STATE.theme;
+    autoPreview = DEFAULT_FORM_STATE.autoPreview;
+
+    if (isClient) clearStoredFormState();
+    applyPreview();
   }
   
   // Generate HTML Code
@@ -142,25 +240,67 @@
     });
   }
   
-  // Update on state change
+  // Update generated code on form changes
   $effect(() => {
     const config = parseFormState();
     generatedCode = generateCode(config);
+  });
 
+  // Persist form state
+  $effect(() => {
+    if (!isClient) return;
+    const toStore = {
+      relays,
+      authors,
+      tags,
+      search,
+      kinds,
+      maxItems,
+      showSearch,
+      showCategories,
+      showAuthor,
+      theme,
+      autoPreview
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
+    } catch {
+      // ignore
+    }
+  });
+
+  // Auto preview (debounced)
+  $effect(() => {
+    if (!isClient || !autoPreview) return;
+    const config = parseFormState();
+    const timeout = setTimeout(() => {
+      appliedConfig = config;
+    }, 500);
+    return () => clearTimeout(timeout);
+  });
+
+  // Render preview from applied config only
+  $effect(() => {
     const widgetCtor = NostrFeedWidget;
     const container = previewContainer;
     if (!widgetCtor || !container) return;
-    updatePreview(config, widgetCtor, container);
+    updatePreview(appliedConfig, widgetCtor, container);
   });
   
   // Initial setup
   onMount(async () => {
     console.log('[WidgetBuilder] onMount called');
+    const stored = readStoredFormState();
+    if (stored) {
+      applyStoredFormState(stored);
+    }
+    isClient = true;
     // Dynamisch importieren für Browser-only
     const module = await import('../widget/nostr-feed.js');
     NostrFeedWidget = module.NostrFeedWidget;
     console.log('[WidgetBuilder] NostrFeedWidget loaded');
     // Vorschau wird per $effect aktualisiert
+    applyPreview();
   });
 </script>
 
@@ -265,7 +405,21 @@
     </div>
     
     <div class="preview-section">
-      <h2>Vorschau</h2>
+      <div class="preview-header">
+        <h2>Vorschau</h2>
+        <div class="preview-actions">
+          <button class="apply-button" onclick={applyPreview} disabled={!NostrFeedWidget}>
+            Anwenden
+          </button>
+          <label class="auto-preview">
+            <input type="checkbox" bind:checked={autoPreview} />
+            Auto (500ms)
+          </label>
+          <button class="reset-button" onclick={resetForm}>
+            Zurücksetzen
+          </button>
+        </div>
+      </div>
       <div class="preview-container" bind:this={previewContainer}></div>
     </div>
   </div>
@@ -367,6 +521,72 @@
     background: #f9fafb;
     padding: 20px;
     border-radius: 8px;
+  }
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .preview-header h2 {
+    margin-bottom: 0;
+  }
+
+  .preview-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .auto-preview {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: #374151;
+    user-select: none;
+  }
+
+  .auto-preview input {
+    width: auto;
+  }
+
+  .apply-button,
+  .reset-button {
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .apply-button {
+    background: #7e22ce;
+    color: white;
+  }
+
+  .apply-button:hover {
+    background: #6b21a8;
+  }
+
+  .apply-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .reset-button {
+    background: #e5e7eb;
+    color: #111827;
+  }
+
+  .reset-button:hover {
+    background: #d1d5db;
   }
   
   .preview-container {

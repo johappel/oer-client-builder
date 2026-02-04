@@ -13,11 +13,13 @@
 - [ ] **Unit Tests**: Nostr Client, Event Parser (AMB)
 
 ### Woche 3-4: Builder App + Tests
-- [ ] SvelteKit Setup
-- [ ] Konfigurationsformular
-- [ ] Live-Vorschau
-- [ ] Snippet-Generator
-- [ ] Basic Styling
+- [x] SvelteKit Setup
+- [x] Konfigurationsformular
+- [x] Live-Vorschau
+- [x] Snippet-Generator
+- [x] Basic Styling
+- [x] Formular-Persistenz (localStorage)
+- [x] Apply/Auto-Vorschau (debounced)
 - [ ] **Unit Tests**: Config Store, Validators
 - [ ] **E2E Tests**: Basic Widget Rendering
 
