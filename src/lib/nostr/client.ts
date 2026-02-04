@@ -7,6 +7,7 @@ import type { NostrEvent, NostrFilter, NostrSubscription, NostrMessage } from '.
 
 export interface NostrClientConfig {
   relays: string[];
+  debug?: boolean;
   onEvent?: (event: NostrEvent) => void;
   onNotice?: (notice: string) => void;
   onError?: (error: Error) => void;
@@ -39,6 +40,7 @@ export class NostrClient {
         
         ws.onopen = () => {
           console.log(`[NostrClient] Connected to ${relayUrl}`);
+          this.flushSubscriptionsToRelay(relayUrl, ws);
           this.config.onConnect?.(relayUrl);
         };
 
@@ -51,8 +53,9 @@ export class NostrClient {
           this.config.onError?.(new Error(`WebSocket error on ${relayUrl}`));
         };
 
-        ws.onclose = () => {
-          console.log(`[NostrClient] Disconnected from ${relayUrl}`);
+        ws.onclose = (event) => {
+          const closeDetails = { code: event.code, reason: event.reason, wasClean: event.wasClean };
+          console.log(`[NostrClient] Disconnected from ${relayUrl}`, closeDetails);
           this.relays.delete(relayUrl);
           this.config.onDisconnect?.(relayUrl);
         };
@@ -87,10 +90,8 @@ export class NostrClient {
     this.subscriptions.set(subscriptionId, subscription);
 
     // An alle Relays senden
-    this.relays.forEach((ws) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(['REQ', subscriptionId, ...filters]));
-      }
+    this.relays.forEach((ws, relayUrl) => {
+      this.sendReqIfOpen(relayUrl, ws, subscriptionId, filters);
     });
   }
 
@@ -100,9 +101,9 @@ export class NostrClient {
   unsubscribe(subscriptionId: string): void {
     this.subscriptions.delete(subscriptionId);
 
-    this.relays.forEach((ws) => {
+    this.relays.forEach((ws, relayUrl) => {
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify(['CLOSE', subscriptionId]));
+        this.send(relayUrl, ws, ['CLOSE', subscriptionId]);
       }
     });
   }
@@ -159,6 +160,29 @@ export class NostrClient {
       }
     } catch (error) {
       console.error(`[NostrClient] Failed to parse message from ${relayUrl}:`, error);
+    }
+  }
+
+  private flushSubscriptionsToRelay(relayUrl: string, ws: WebSocket): void {
+    this.subscriptions.forEach((sub) => {
+      this.sendReqIfOpen(relayUrl, ws, sub.id, sub.filters);
+    });
+  }
+
+  private sendReqIfOpen(relayUrl: string, ws: WebSocket, subscriptionId: string, filters: NostrFilter[]): void {
+    if (ws.readyState !== WebSocket.OPEN) return;
+    this.send(relayUrl, ws, ['REQ', subscriptionId, ...filters]);
+  }
+
+  private send(relayUrl: string, ws: WebSocket, message: unknown): void {
+    try {
+      if (this.config.debug) {
+        console.debug('[NostrClient] ->', relayUrl, message);
+      }
+      ws.send(JSON.stringify(message));
+    } catch (error) {
+      console.error(`[NostrClient] Failed to send message to ${relayUrl}:`, error);
+      this.config.onError?.(error as Error);
     }
   }
 
