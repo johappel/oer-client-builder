@@ -262,6 +262,108 @@ TEMPLATE.innerHTML = `
       backdrop-filter: blur(4px);
     }
 
+    /* OER cards */
+    .card-amb .card-content {
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: #fff;
+    }
+
+    .card-amb .card-title {
+      color: #fff;
+      margin-bottom: 8px;
+    }
+
+    .card-amb .card-type {
+      background: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .card-amb .card-link {
+      color: #fff;
+    }
+
+    .oer-creators {
+      display: flex;
+      gap: 6px;
+      margin: 6px 0 10px;
+      flex-wrap: wrap;
+    }
+
+    .oer-avatar-img {
+      width: 28px;
+      height: 28px;
+      border-radius: 9999px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.92);
+      background: rgba(0, 0, 0, 0.25);
+      background-size: cover;
+      background-position: center;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+    }
+
+    .oer-creators-text {
+      margin: 6px 0 10px;
+      font-size: 12px;
+      opacity: 0.92;
+    }
+
+    .oer-meta {
+      font-size: 12px;
+      line-height: 1.35;
+      margin-bottom: 10px;
+      opacity: 0.95;
+    }
+
+    .oer-row {
+      margin: 4px 0;
+    }
+
+    .oer-label {
+      font-weight: 700;
+    }
+
+    .oer-meta a {
+      color: #fff;
+      text-decoration: underline;
+      word-break: break-word;
+    }
+
+    .oer-summary {
+      color: rgba(255, 255, 255, 0.92);
+      height: auto;
+      margin-bottom: 10px;
+    }
+
+    .oer-keywords {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 10px;
+    }
+
+    .oer-level {
+      margin: 6px 0 10px;
+    }
+
+    .oer-chip {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      background: rgba(0, 0, 0, 0.28);
+      color: rgba(255, 255, 255, 0.92);
+    }
+
+    .oer-chip-level {
+      background: rgba(255, 255, 255, 0.18);
+      color: rgba(255, 255, 255, 0.95);
+      font-weight: 800;
+      letter-spacing: 0.01em;
+    }
+
     .event-meta {
       margin: 10px 0 12px;
       display: grid;
@@ -916,6 +1018,25 @@ export class NostrFeedWidget extends HTMLElement {
     container.appendChild(row);
   }
 
+  private addKvLinkRow(container: HTMLElement, label: string, url: string, text?: string): void {
+    const row = document.createElement('div');
+    row.className = 'kv-row';
+
+    const strong = document.createElement('span');
+    strong.className = 'kv-label';
+    strong.textContent = `${label}: `;
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    a.textContent = text || url;
+
+    row.appendChild(strong);
+    row.appendChild(a);
+    container.appendChild(row);
+  }
+
   private openProfile(pubkey: string): void {
     const modal = this.shadow.getElementById('modal') as HTMLElement;
     const modalImage = this.shadow.getElementById('modalImage') as HTMLElement;
@@ -1024,6 +1145,7 @@ export class NostrFeedWidget extends HTMLElement {
       author,
       authorName,
       authorPicture: authorPicture || null,
+      profileByPubkey: (pubkey: string) => this.profiles.get(pubkey),
       calendarLocationUrl,
       calendarLocationText
     });
@@ -1116,31 +1238,8 @@ export class NostrFeedWidget extends HTMLElement {
         extraLines.push(`Veröffentlicht: ${new Date(Number(metadata.publishedAt) * 1000).toLocaleString('de-DE')}`);
       }
     }
-    if (event.type === 'amb') {
-      if (metadata?.learningResourceType) extraLines.push(`learningResourceType: ${String(metadata.learningResourceType)}`);
-      if (metadata?.license) extraLines.push(`license: ${String(metadata.license)}`);
-      if (Array.isArray(metadata?.audience) && metadata.audience.length > 0) extraLines.push(`audience: ${metadata.audience.join(', ')}`);
-      if (Array.isArray(metadata?.about) && metadata.about.length > 0) extraLines.push(`about: ${metadata.about.join(', ')}`);
-      if (metadata?.creator) extraLines.push(`creator: ${String(metadata.creator)}`);
-      if (Array.isArray(metadata?.creatorPubkeys) && metadata.creatorPubkeys.length > 0) {
-        const names = metadata.creatorPubkeys.map((pk: string) => {
-          const prof = this.profiles.get(pk);
-          return prof?.name || prof?.display_name || pk.slice(0, 8) + '…' + pk.slice(-4);
-        });
-        extraLines.push(`creator (nostr): ${names.join(', ')}`);
-      }
-      if (Array.isArray(metadata?.contributor) && metadata.contributor.length > 0) {
-        extraLines.push(`contributor: ${metadata.contributor.join(', ')}`);
-      }
-      if (Array.isArray(metadata?.contributorPubkeys) && metadata.contributorPubkeys.length > 0) {
-        const names = metadata.contributorPubkeys.map((pk: string) => {
-          const prof = this.profiles.get(pk);
-          return prof?.name || prof?.display_name || pk.slice(0, 8) + '…' + pk.slice(-4);
-        });
-        extraLines.push(`contributor (nostr): ${names.join(', ')}`);
-      }
-      if (metadata?.d) extraLines.push(`d: ${String(metadata.d)}`);
-    }
+    // AMB/OER (Kind 30142) Zusatzinfos werden als strukturierte KV-Zeilen unten angehängt,
+    // damit Links (Lizenz, OER, Referenzen) klickbar sind und nicht doppelt im Fließtext landen.
 
     const baseText = metadata?.summary || metadata?.description || metadata?.content || event.event.content || '';
     const description = extraLines.length > 0 ? [...extraLines, '', String(baseText)].join('\n') : String(baseText);
@@ -1172,6 +1271,80 @@ export class NostrFeedWidget extends HTMLElement {
       }
     }
 
+    if (event.type === 'amb') {
+      const tags = event.event.tags || [];
+      const lang = this.config.language || 'de';
+
+      const uniq = (values: string[]) => Array.from(new Set(values.map((v) => v.trim()).filter(Boolean)));
+
+      const extractPrefLabels = (base: string): string[] => {
+        const prefTags = tags
+          .filter((t) => typeof t[0] === 'string' && t[0].startsWith(`${base}:prefLabel:`))
+          .map((t) => ({ key: t[0], value: t[1] }))
+          .filter((t) => typeof t.value === 'string' && t.value.trim().length > 0);
+        if (prefTags.length === 0) return [];
+        const exact = prefTags.filter((t) => t.key === `${base}:prefLabel:${lang}`).map((t) => t.value);
+        return uniq((exact.length > 0 ? exact : prefTags.map((t) => t.value)) as string[]);
+      };
+
+      const learningType =
+        extractPrefLabels('learningResourceType')[0] ||
+        (typeof metadata?.learningResourceType === 'string' ? metadata.learningResourceType : '');
+      if (learningType) this.addKvRow(modalDescription, 'learningResourceType', learningType);
+
+      const about = extractPrefLabels('about');
+      if (about.length > 0) this.addKvRow(modalDescription, 'about', about.join(', '));
+
+      const audience = extractPrefLabels('audience');
+      if (audience.length > 0) this.addKvRow(modalDescription, 'audience', audience.join(', '));
+
+      const educationalLevel = extractPrefLabels('educationalLevel');
+      if (educationalLevel.length > 0) this.addKvRow(modalDescription, 'educationalLevel', educationalLevel.join(', '));
+
+      const license =
+        (typeof metadata?.license === 'string' ? metadata.license : '') ||
+        (tags.find((t) => t[0] === 'license:id')?.[1] as string | undefined) ||
+        '';
+      if (license) {
+        if (this.isSafeHttpUrl(license)) this.addKvLinkRow(modalDescription, 'Lizenz', license);
+        else this.addKvRow(modalDescription, 'Lizenz', license);
+      }
+
+      const d =
+        (typeof metadata?.d === 'string' ? metadata.d : '') ||
+        (tags.find((t) => t[0] === 'd')?.[1] as string | undefined) ||
+        '';
+      if (d) {
+        if (this.isSafeHttpUrl(d)) this.addKvLinkRow(modalDescription, 'OER', d);
+        else this.addKvRow(modalDescription, 'd', d);
+      }
+
+      const refs = uniq(tags.filter((t) => t[0] === 'r' && typeof t[1] === 'string').map((t) => t[1] as string)).filter((u) =>
+        this.isSafeHttpUrl(u)
+      );
+      if (refs.length > 0) {
+        const row = document.createElement('div');
+        row.className = 'kv-row';
+        const strong = document.createElement('span');
+        strong.className = 'kv-label';
+        strong.textContent = 'Referenzen: ';
+        row.appendChild(strong);
+
+        const list = document.createElement('div');
+        refs.forEach((u) => {
+          const a = document.createElement('a');
+          a.href = u;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = u;
+          a.style.display = 'block';
+          list.appendChild(a);
+        });
+        row.appendChild(list);
+        modalDescription.appendChild(row);
+      }
+    }
+
     if (this.config.showAuthor && author) {
       const authorPic = author.picture && this.isSafeHttpUrl(author.picture) ? author.picture : '';
       modalAvatar.style.backgroundImage = authorPic ? `url('${authorPic}')` : 'none';
@@ -1188,12 +1361,18 @@ export class NostrFeedWidget extends HTMLElement {
     }
 
     modalTags.innerHTML = '';
-    event.event.tags
-      .filter(t => t[0] === 't')
-      .forEach(tag => {
+    const textTags = event.event.tags
+      .filter((t) => t[0] === 't')
+      .map((t) => t[1]);
+    const keywordTags = event.event.tags
+      .filter((t) => t[0] === 'keywords')
+      .map((t) => t[1]);
+    [...textTags, ...keywordTags]
+      .filter((v) => typeof v === 'string' && v.trim().length > 0)
+      .forEach((value) => {
         const tagEl = document.createElement('span');
         tagEl.className = 'modal-tag';
-        tagEl.textContent = tag[1];
+        tagEl.textContent = String(value);
         modalTags.appendChild(tagEl);
       });
 

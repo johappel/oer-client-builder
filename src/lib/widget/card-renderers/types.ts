@@ -12,6 +12,7 @@ export interface CardRenderContext {
   author?: ProfileMetadata;
   authorName: string | null;
   authorPicture: string | null;
+  profileByPubkey?: (pubkey: string) => ProfileMetadata | undefined;
   calendarLocationUrl?: string | null;
   calendarLocationText?: string | null;
 }
@@ -20,4 +21,3 @@ export interface RenderedCard {
   cardClassName?: string;
   html: string;
 }
-
