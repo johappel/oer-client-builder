@@ -44,6 +44,12 @@ function firstTagValue(tags: string[][], key: string): string | null {
   return typeof found?.[1] === 'string' ? found[1] : null;
 }
 
+function asHexPubkey(input: string): string | null {
+  const s = input.trim().toLowerCase();
+  if (/^[0-9a-f]{64}$/.test(s)) return s;
+  return null;
+}
+
 export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
   const metadata: any = ctx.event.metadata || {};
   const tags = ctx.event.event.tags || [];
@@ -69,6 +75,15 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
   const oerUrl = d && isSafeHttpUrl(d) ? d : null;
 
   const creatorPubkeys: string[] = Array.isArray(metadata?.creatorPubkeys) ? metadata.creatorPubkeys : [];
+  const creatorIdPubkeys = uniq(
+    tags
+      .filter((t) => t[0] === 'creator:id' && typeof t[1] === 'string')
+      .map((t) => String(t[1]))
+      .map((v) => (v.toLowerCase().startsWith('nostr:') ? v.slice('nostr:'.length) : v))
+      .map((v) => asHexPubkey(v))
+      .filter((v): v is string => Boolean(v))
+  );
+  const allCreatorPubkeys = uniq([...creatorPubkeys, ...creatorIdPubkeys]);
   const creatorNamesPlain = typeof metadata?.creator === 'string' ? metadata.creator.trim() : '';
 
   const creatorNamesFromTags = uniq(
@@ -76,10 +91,11 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
   );
 
   const creatorEntries: Array<{ key: string; name: string; picture?: string }> = [];
-  for (const pk of creatorPubkeys.slice(0, 6)) {
+  for (const pk of allCreatorPubkeys.slice(0, 6)) {
     const prof = ctx.profileByPubkey ? ctx.profileByPubkey(pk) : undefined;
     const picture = typeof prof?.picture === 'string' && isSafeHttpUrl(prof.picture) ? prof.picture : undefined;
-    const name = (prof?.name || prof?.display_name || '').trim() || pk.slice(0, 8) + '…' + pk.slice(-4);
+    const profileName = (prof?.name || prof?.display_name || '').trim();
+    const name = profileName || `Unbekannt ${pk.slice(-4)}`;
     creatorEntries.push({ key: pk, name, picture });
   }
   if (creatorEntries.length === 0) {
@@ -94,11 +110,12 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
             .map(({ key, name, picture }) => {
               const initials = (name || key).slice(0, 2).toUpperCase();
               const title = name || key;
+              const pk = asHexPubkey(key);
               return `
-                <span class="oer-avatar" title="${title}">
+                <button class="oer-avatar" type="button" title="${title}" ${pk ? `data-pubkey="${pk}"` : ''}>
                   <span class="oer-avatar-img" style="${picture ? `background-image: url('${picture}')` : ''}">${!picture ? initials : ''}</span>
                   <span class="oer-avatar-name">${name}</span>
-                </span>
+                </button>
               `;
             })
             .join('')}
@@ -145,7 +162,6 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
         ${!ctx.imageUrl ? 'NO IMAGE' : ''}
         ${overlayHtml}
       </div>
-      ${creatorsHtml}
       <div class="card-content">
         <span class="card-type">${ctx.typeLabel}</span>
         <h3 class="card-title">${ctx.title}</h3>
@@ -153,6 +169,7 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
         ${metaHtml}
         ${descriptionShort ? `<p class="card-summary oer-summary">${descriptionShort}</p>` : ''}
         ${keywordsHtml}
+        ${creatorsHtml}
         <a class="card-link" href="${ctx.href || '#'}" target="_blank">Öffnen →</a>
       </div>
     `

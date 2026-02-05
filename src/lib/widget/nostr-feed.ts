@@ -285,9 +285,8 @@ TEMPLATE.innerHTML = `
     .oer-creators {
       display: flex;
       gap: 6px;
-      margin: 0;
+      margin: 10px 0 0;
       flex-wrap: wrap;
-      padding: 10px 15px 0;
     }
 
     .oer-avatar {
@@ -295,6 +294,11 @@ TEMPLATE.innerHTML = `
       align-items: center;
       gap: 8px;
       max-width: 100%;
+      border: none;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+      text-align: left;
     }
 
     .oer-avatar-img {
@@ -307,7 +311,7 @@ TEMPLATE.innerHTML = `
       font-size: 11px;
       font-weight: 700;
       color: rgba(255, 255, 255, 0.92);
-      background: rgba(0, 0, 0, 0.25);
+      background: rgba(255, 255, 255, 0.22);
       background-size: cover;
       background-position: center;
       border: 1px solid rgba(255, 255, 255, 0.25);
@@ -315,7 +319,7 @@ TEMPLATE.innerHTML = `
 
     .oer-avatar-name {
       font-size: 12px;
-      color: #374151;
+      color: rgba(255, 255, 255, 0.95);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -1315,6 +1319,15 @@ export class NostrFeedWidget extends HTMLElement {
         this.openProfile(event.event.pubkey);
       });
     }
+
+    card.querySelectorAll<HTMLElement>('.oer-avatar[data-pubkey]').forEach((el) => {
+      const pubkey = el.getAttribute('data-pubkey') || '';
+      if (!pubkey) return;
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openProfile(pubkey);
+      });
+    });
 
     card.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).tagName !== 'A') {
