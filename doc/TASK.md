@@ -33,6 +33,8 @@
   - [ ] Kind 30142: OER Materials
   - [ ] Kind 31922: Date-based Events
   - [ ] Kind 31923: Time-based Events
+  - [ ] Calendar (NIP-52): wichtige Felder aus `tags` extrahieren (`title`, `start`, `end`, `start_tzid/start_tz`, `end_tzid/end_tz`, `image`, `location`, `d`) und pro Kind eigenen Parser verwenden
+  - [x] Kind-Spezifika UI: Calendar braucht `start` (optional `end`), Ã–ffnen-Link Ã¼ber `nostr:` URI (naddr/nevent), Profile-Ansicht fÃ¼r Personen + OER-SchlÃ¼sselmetadaten im Klartext
 - [ ] Profile-Caching System
 
 ### 2.3 UI Komponenten

@@ -8,7 +8,7 @@ import type { WidgetConfig, ParsedEvent, ProfileMetadata } from '../nostr/types.
 import { NostrClient } from '../nostr/client.js';
 import { parseEvent, enrichWithProfiles, extractProfiles } from '../nostr/parser.js';
 import { applyTwoLevelFilter, createFilterConfig, extractCategories, extractAuthors } from '../nostr/filter.js';
-import { normalizePubkey } from '../nostr/nip19.js';
+import { normalizePubkey, encodeNprofile } from '../nostr/nip19.js';
 
 const TEMPLATE = document.createElement('template');
 TEMPLATE.innerHTML = `
@@ -152,6 +152,12 @@ TEMPLATE.innerHTML = `
       margin-bottom: 10px;
     }
 
+    .card-date {
+      font-size: 12px;
+      color: #6b7280;
+      margin: 0 0 10px;
+    }
+
     .card-link {
       text-decoration: none;
       color: #7e22ce;
@@ -251,6 +257,43 @@ TEMPLATE.innerHTML = `
     .modal-description {
       line-height: 1.6;
       color: #333;
+      white-space: pre-wrap;
+    }
+
+    .kv-row {
+      margin: 10px 0;
+    }
+
+    .kv-label {
+      font-weight: 600;
+    }
+
+    .person-link {
+      border: none;
+      background: transparent;
+      color: #7e22ce;
+      padding: 0;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    .profile-list {
+      margin: 10px 0 0;
+      padding-left: 18px;
+    }
+
+    .profile-list button {
+      border: none;
+      background: transparent;
+      padding: 0;
+      color: inherit;
+      cursor: pointer;
+      text-align: left;
+      font: inherit;
+    }
+
+    .profile-list button:hover {
+      text-decoration: underline;
     }
 
     .modal-tags {
@@ -570,17 +613,170 @@ export class NostrFeedWidget extends HTMLElement {
       filterConfig
     );
 
-    if (filteredEvents.length === 0) {
+    const displayEvents = filteredEvents.filter((event) => {
+      if (event.type !== 'calendar') return true;
+      const metadata = event.metadata as any;
+      return Boolean(metadata?.start);
+    });
+
+    if (displayEvents.length === 0) {
       grid.innerHTML = '<div class="empty">Keine Ergebnisse gefunden</div>';
       return;
     }
 
     grid.innerHTML = '';
 
-    filteredEvents.forEach(event => {
+    displayEvents.forEach(event => {
       const card = this.createCard(event);
       grid.appendChild(card);
     });
+  }
+
+  private isSafeHref(href: string): boolean {
+    try {
+      const s = href.trim();
+      if (!s) return false;
+      if (s.toLowerCase().startsWith('nostr:')) return true;
+      const u = new URL(s);
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
+  private isSafeHttpUrl(url: string): boolean {
+    try {
+      const u = new URL(url.trim());
+      return u.protocol === 'http:' || u.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  }
+
+  private primaryHref(event: ParsedEvent): string | null {
+    if (event.nostrUri && this.isSafeHref(event.nostrUri)) return event.nostrUri;
+    const metadata = event.metadata as any;
+    const url = typeof metadata?.url === 'string' ? metadata.url : '';
+    if (url && this.isSafeHref(url)) return url;
+    return null;
+  }
+
+  private formatCalendarRange(kind: number, metadata: any): string | null {
+    const start = metadata?.start;
+    const end = metadata?.end;
+
+    if (!start) return null;
+
+    if (kind === 31923 && typeof start === 'number') {
+      const tz = metadata?.start_tzid || metadata?.start_tz;
+      const fmt = new Intl.DateTimeFormat('de-DE', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+        ...(tz ? { timeZone: tz } : {})
+      });
+      const startStr = fmt.format(new Date(start * 1000));
+      if (typeof end === 'number') {
+        const endTz = metadata?.end_tzid || metadata?.end_tz || tz;
+        const endFmt = new Intl.DateTimeFormat('de-DE', {
+          dateStyle: 'medium',
+          timeStyle: 'short',
+          ...(endTz ? { timeZone: endTz } : {})
+        });
+        return `${startStr} – ${endFmt.format(new Date(end * 1000))}`;
+      }
+      return startStr;
+    }
+
+    if (typeof start === 'string') {
+      if (typeof end === 'string' && end) return `${start} – ${end}`;
+      return start;
+    }
+
+    return null;
+  }
+
+  private clearElement(el: HTMLElement): void {
+    while (el.firstChild) el.removeChild(el.firstChild);
+  }
+
+  private addKvRow(container: HTMLElement, label: string, value: string): void {
+    const row = document.createElement('div');
+    row.className = 'kv-row';
+    const strong = document.createElement('span');
+    strong.className = 'kv-label';
+    strong.textContent = `${label}: `;
+    const span = document.createElement('span');
+    span.textContent = value;
+    row.appendChild(strong);
+    row.appendChild(span);
+    container.appendChild(row);
+  }
+
+  private openProfile(pubkey: string): void {
+    const modal = this.shadow.getElementById('modal') as HTMLElement;
+    const modalImage = this.shadow.getElementById('modalImage') as HTMLElement;
+    const modalTitle = this.shadow.getElementById('modalTitle') as HTMLElement;
+    const modalAvatar = this.shadow.getElementById('modalAvatar') as HTMLElement;
+    const modalAuthor = this.shadow.getElementById('modalAuthor') as HTMLElement;
+    const modalDescription = this.shadow.getElementById('modalDescription') as HTMLElement;
+    const modalTags = this.shadow.getElementById('modalTags') as HTMLElement;
+    const modalLink = this.shadow.getElementById('modalLink') as HTMLAnchorElement;
+
+    const profile = this.profiles.get(pubkey) || {};
+    const title = profile.display_name || profile.name || pubkey.slice(0, 8) + '…' + pubkey.slice(-4);
+
+    modalImage.style.backgroundImage = profile.banner && this.isSafeHttpUrl(profile.banner) ? `url('${profile.banner}')` : 'none';
+    modalTitle.textContent = title;
+
+    modalAvatar.style.display = 'block';
+    modalAvatar.style.backgroundImage = profile.picture && this.isSafeHttpUrl(profile.picture) ? `url('${profile.picture}')` : 'none';
+
+    modalAuthor.textContent = profile.nip05 || pubkey;
+    (modalAuthor as any).onclick = null;
+    (modalAvatar as any).onclick = null;
+    (modalAuthor as any).style.cursor = 'default';
+    (modalAvatar as any).style.cursor = 'default';
+
+    this.clearElement(modalDescription);
+    if (profile.about) {
+      const about = document.createElement('div');
+      about.textContent = profile.about;
+      modalDescription.appendChild(about);
+    }
+    if (profile.website) this.addKvRow(modalDescription, 'Website', profile.website);
+
+    this.clearElement(modalTags);
+
+    const items = enrichWithProfiles(this.events, this.profiles)
+      .filter((e) => e.event.pubkey === pubkey && e.type !== 'profile')
+      .slice(0, 50);
+
+    if (items.length > 0) {
+      const listTitle = document.createElement('div');
+      listTitle.className = 'kv-row';
+      listTitle.textContent = `Inhalte (${items.length}):`;
+      modalDescription.appendChild(listTitle);
+
+      const ul = document.createElement('ul');
+      ul.className = 'profile-list';
+      items.forEach((item) => {
+        const li = document.createElement('li');
+        const btn = document.createElement('button');
+        const meta = item.metadata as any;
+        btn.textContent = meta?.title || meta?.name || item.event.content?.slice(0, 60) || item.event.id.slice(0, 12);
+        btn.addEventListener('click', () => this.openModal(item));
+        li.appendChild(btn);
+        ul.appendChild(li);
+      });
+      modalDescription.appendChild(ul);
+    }
+
+    const profileUri = `nostr:${encodeNprofile(pubkey)}`;
+    modalLink.href = profileUri;
+    modalLink.rel = 'noopener noreferrer';
+    modalLink.style.display = 'inline-block';
+
+    modal.classList.add('open');
   }
 
   private createCard(event: ParsedEvent): HTMLElement {
@@ -589,17 +785,22 @@ export class NostrFeedWidget extends HTMLElement {
 
     const metadata = event.metadata as any;
     const author = event.author;
+    const authorPicture = author?.picture && this.isSafeHttpUrl(author.picture) ? author.picture : '';
 
     const title = metadata?.title || metadata?.name || 'Unbenannt';
     const summary = metadata?.summary || metadata?.description || event.event.content?.slice(0, 100) || '';
-    const image = metadata?.image || '';
-    const url = metadata?.url || '';
+    const when = event.type === 'calendar' ? this.formatCalendarRange(event.event.kind, metadata) : null;
+    const displaySummary = when ? `${when} • ${summary}` : summary;
+    const imageRaw = typeof metadata?.image === 'string' ? metadata.image : '';
+    const image = imageRaw && this.isSafeHttpUrl(imageRaw) ? imageRaw : '';
+    const href = this.primaryHref(event);
+    const url = href || '';
 
     const typeLabels: Record<string, string> = {
       amb: 'OER Material',
       calendar: 'Veranstaltung',
       article: 'Artikel',
-      note: 'Note',
+      note: 'Nachricht',
       profile: 'Profil'
     };
 
@@ -610,16 +811,34 @@ export class NostrFeedWidget extends HTMLElement {
       <div class="card-content">
         <span class="card-type">${typeLabels[event.type] || event.type}</span>
         <h3 class="card-title">${title}</h3>
-        <p class="card-summary">${summary.length > 100 ? summary.slice(0, 100) + '...' : summary}</p>
+        <p class="card-summary">${displaySummary.length > 100 ? displaySummary.slice(0, 100) + '...' : displaySummary}</p>
         ${this.config.showAuthor && author ? `
           <div class="card-meta">
-            <div class="card-avatar" style="${author.picture ? `background-image: url('${author.picture}')` : ''}"></div>
+            <div class="card-avatar" style="${authorPicture ? `background-image: url('${authorPicture}')` : ''}"></div>
             <span class="card-author">${author.name || author.display_name || 'Unbekannt'}</span>
           </div>
         ` : ''}
         <a class="card-link" href="${url || '#'}" target="_blank">Öffnen &rarr;</a>
       </div>
     `;
+
+    const linkEl = card.querySelector('.card-link') as HTMLAnchorElement | null;
+    if (linkEl) {
+      if (url) {
+        linkEl.href = url;
+        linkEl.rel = 'noopener noreferrer';
+      } else {
+        linkEl.style.display = 'none';
+      }
+    }
+
+    const metaEl = card.querySelector('.card-meta') as HTMLElement | null;
+    if (metaEl) {
+      metaEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.openProfile(event.event.pubkey);
+      });
+    }
 
     card.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).tagName !== 'A') {
@@ -642,22 +861,76 @@ export class NostrFeedWidget extends HTMLElement {
 
     const metadata = event.metadata as any;
     const author = event.author;
+    const authorPicture = author?.picture && this.isSafeHttpUrl(author.picture) ? author.picture : '';
+
+    if (event.type === 'profile') {
+      this.openProfile(event.event.pubkey);
+      return;
+    }
 
     const title = metadata?.title || metadata?.name || 'Unbenannt';
-    const description = metadata?.summary || metadata?.description || event.event.content || '';
-    const image = metadata?.image || '';
-    const url = metadata?.url || '';
+    const imageRaw = typeof metadata?.image === 'string' ? metadata.image : '';
+    const image = imageRaw && this.isSafeHttpUrl(imageRaw) ? imageRaw : '';
+    const href = this.primaryHref(event);
+
+    const extraLines: string[] = [];
+    if (event.type === 'calendar') {
+      const when = this.formatCalendarRange(event.event.kind, metadata);
+      if (when) extraLines.push(`Termin: ${when}`);
+      if (metadata?.location) extraLines.push(`Ort: ${String(metadata.location)}`);
+      if (metadata?.start === undefined) extraLines.push('Hinweis: start fehlt (Event ist unvollständig).');
+    }
+    if (event.type === 'article') {
+      if (metadata?.publishedAt) {
+        extraLines.push(`Veröffentlicht: ${new Date(Number(metadata.publishedAt) * 1000).toLocaleString('de-DE')}`);
+      }
+    }
+    if (event.type === 'amb') {
+      if (metadata?.learningResourceType) extraLines.push(`learningResourceType: ${String(metadata.learningResourceType)}`);
+      if (metadata?.license) extraLines.push(`license: ${String(metadata.license)}`);
+      if (Array.isArray(metadata?.audience) && metadata.audience.length > 0) extraLines.push(`audience: ${metadata.audience.join(', ')}`);
+      if (Array.isArray(metadata?.about) && metadata.about.length > 0) extraLines.push(`about: ${metadata.about.join(', ')}`);
+      if (metadata?.creator) extraLines.push(`creator: ${String(metadata.creator)}`);
+      if (Array.isArray(metadata?.creatorPubkeys) && metadata.creatorPubkeys.length > 0) {
+        const names = metadata.creatorPubkeys.map((pk: string) => {
+          const prof = this.profiles.get(pk);
+          return prof?.name || prof?.display_name || pk.slice(0, 8) + '…' + pk.slice(-4);
+        });
+        extraLines.push(`creator (nostr): ${names.join(', ')}`);
+      }
+      if (Array.isArray(metadata?.contributor) && metadata.contributor.length > 0) {
+        extraLines.push(`contributor: ${metadata.contributor.join(', ')}`);
+      }
+      if (Array.isArray(metadata?.contributorPubkeys) && metadata.contributorPubkeys.length > 0) {
+        const names = metadata.contributorPubkeys.map((pk: string) => {
+          const prof = this.profiles.get(pk);
+          return prof?.name || prof?.display_name || pk.slice(0, 8) + '…' + pk.slice(-4);
+        });
+        extraLines.push(`contributor (nostr): ${names.join(', ')}`);
+      }
+      if (metadata?.d) extraLines.push(`d: ${String(metadata.d)}`);
+    }
+
+    const baseText = metadata?.summary || metadata?.description || metadata?.content || event.event.content || '';
+    const description = extraLines.length > 0 ? [...extraLines, '', String(baseText)].join('\n') : String(baseText);
 
     modalImage.style.backgroundImage = image ? `url('${image}')` : 'none';
     modalTitle.textContent = title;
     modalDescription.textContent = description;
 
     if (this.config.showAuthor && author) {
-      modalAvatar.style.backgroundImage = author.picture ? `url('${author.picture}')` : 'none';
+      const authorPic = author.picture && this.isSafeHttpUrl(author.picture) ? author.picture : '';
+      modalAvatar.style.backgroundImage = authorPic ? `url('${authorPic}')` : 'none';
       modalAuthor.textContent = author.name || author.display_name || 'Unbekannt';
+      (modalAuthor as any).onclick = () => this.openProfile(event.event.pubkey);
+      (modalAvatar as any).onclick = () => this.openProfile(event.event.pubkey);
+      (modalAuthor as any).style.cursor = 'pointer';
+      (modalAvatar as any).style.cursor = 'pointer';
     } else {
       modalAvatar.style.display = 'none';
       modalAuthor.textContent = '';
+      (modalAuthor as any).onclick = null;
+      (modalAvatar as any).onclick = null;
     }
 
     modalTags.innerHTML = '';
@@ -670,8 +943,35 @@ export class NostrFeedWidget extends HTMLElement {
         modalTags.appendChild(tagEl);
       });
 
-    modalLink.href = url || '#';
-    modalLink.style.display = url ? 'inline-block' : 'none';
+    if (event.type === 'amb') {
+      const addPersonTag = (role: string, pubkey: string) => {
+        const prof = this.profiles.get(pubkey);
+        const name = prof?.name || prof?.display_name || pubkey.slice(0, 8) + '…' + pubkey.slice(-4);
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'modal-tag';
+        btn.style.cursor = 'pointer';
+        btn.style.border = 'none';
+        btn.textContent = `${role}: ${name}`;
+        btn.addEventListener('click', () => this.openProfile(pubkey));
+        modalTags.appendChild(btn);
+      };
+
+      const creatorPubkeys = Array.isArray(metadata?.creatorPubkeys) ? metadata.creatorPubkeys : [];
+      creatorPubkeys.forEach((pk: string) => addPersonTag('creator', pk));
+
+      const contributorPubkeys = Array.isArray(metadata?.contributorPubkeys) ? metadata.contributorPubkeys : [];
+      contributorPubkeys.forEach((pk: string) => addPersonTag('contributor', pk));
+    }
+
+    if (href) {
+      modalLink.href = href;
+      modalLink.rel = 'noopener noreferrer';
+      modalLink.style.display = 'inline-block';
+    } else {
+      modalLink.href = '#';
+      modalLink.style.display = 'none';
+    }
 
     modal.classList.add('open');
   }

@@ -36,6 +36,7 @@
 **Ziel: Vollständige Feature-Parität mit Anforderungen**
 
 ### Woche 5-6: Event Types + Tests
+- [x] Calendar Parser (NIP-52): wichtige Felder aus `tags` + Parser pro Kind (31922/31923)
 - [ ] Kind 31922 (Date-based Events)
 - [ ] Kind 31923 (Time-based Events)
 - [ ] Kind 30023 (Articles)

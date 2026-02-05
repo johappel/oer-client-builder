@@ -57,6 +57,7 @@ export interface AMBMetadata {
   description?: string;
   image?: string;
   url?: string;
+  d?: string;
   
   // Bildungsspezifische Metadaten
   educationalLevel?: string;
@@ -81,6 +82,8 @@ export interface AMBMetadata {
   copyrightHolder?: string;
   creator?: string;
   contributor?: string[];
+  creatorPubkeys?: string[];
+  contributorPubkeys?: string[];
   
   // Technische Metadaten
   format?: string;
@@ -104,18 +107,43 @@ export interface AMBMetadata {
 /**
  * NIP-52 Calendar Event
  */
+export interface CalendarParticipant {
+  pubkey: string;
+  relay?: string;
+  role?: string;
+}
+
 export interface CalendarEvent {
-  name?: string;
-  description?: string;
+  // Identity
+  d?: string;
+
+  // Content
+  title?: string; // NIP-52: required (clients should treat as required)
+  name?: string; // deprecated alias (some events still use it)
+  content?: string; // event.content (required by NIP-52, may be empty string)
+  summary?: string;
+  description?: string; // optional tag-based description (some relays/clients)
+
+  // Media / location
   image?: string;
   location?: string;
-  start?: number; // Unix timestamp
-  end?: number;   // Unix timestamp
-  start_t?: string; // ISO 8601 time string
-  end_t?: string;   // ISO 8601 time string
+  g?: string; // geohash
+
+  // Time
+  // Kind 31922: start/end are ISO dates (YYYY-MM-DD)
+  // Kind 31923: start/end are Unix timestamps (seconds)
+  start?: string | number;
+  end?: string | number;
+  start_t?: string; // legacy field (some clients)
+  end_t?: string;   // legacy field (some clients)
+  start_tzid?: string; // IANA TZ (e.g. Europe/Berlin)
+  end_tzid?: string;   // IANA TZ (e.g. Europe/Berlin)
+
+  // Misc
   status?: string;
   rsvp?: boolean;
-  participants?: string[];
+  participants?: CalendarParticipant[];
+  tags?: string[]; // "t" tags
 }
 
 /**
@@ -133,13 +161,35 @@ export interface ProfileMetadata {
 }
 
 /**
+ * Article Metadata (Kind 30023, 30029)
+ */
+export interface ArticleMetadata {
+  title?: string;
+  name?: string;
+  summary?: string;
+  description?: string;
+  image?: string;
+  url?: string;
+  publishedAt?: number;
+  d?: string;
+}
+
+export interface NoteMetadata {
+  title?: string;
+  name?: string;
+  summary?: string;
+  description?: string;
+}
+
+/**
  * Geparstes Event mit Metadaten
  */
 export interface ParsedEvent {
   event: NostrEvent;
-  metadata: AMBMetadata | CalendarEvent | ProfileMetadata | null;
+  metadata: AMBMetadata | CalendarEvent | ProfileMetadata | ArticleMetadata | NoteMetadata | null;
   type: 'amb' | 'calendar' | 'profile' | 'article' | 'note';
   author?: ProfileMetadata;
+  nostrUri?: string;
 }
 
 /**

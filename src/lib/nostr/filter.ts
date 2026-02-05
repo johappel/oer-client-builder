@@ -55,8 +55,9 @@ export function matchesFilter(event: ParsedEvent, filter: string[]): boolean {
     } else if (event.type === 'calendar') {
       const calendarMetadata = metadata as any;
       searchableText = [
-        calendarMetadata.name || '',
-        calendarMetadata.description || ''
+        calendarMetadata.title || calendarMetadata.name || '',
+        calendarMetadata.summary || calendarMetadata.description || calendarMetadata.content || '',
+        calendarMetadata.location || ''
       ].join(' ');
     } else if (event.type === 'article') {
       const articleMetadata = metadata as any;
@@ -69,6 +70,14 @@ export function matchesFilter(event: ParsedEvent, filter: string[]): boolean {
       searchableText = [
         profileMetadata.name || profileMetadata.display_name || '',
         profileMetadata.about || ''
+      ].join(' ');
+    } else if (event.type === 'note') {
+      const noteMetadata = metadata as any;
+      searchableText = [
+        noteMetadata.title || noteMetadata.name || '',
+        noteMetadata.summary || '',
+        noteMetadata.description || '',
+        event.event.content || ''
       ].join(' ');
     } else {
       // Note: Content durchsuchen

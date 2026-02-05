@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-02-05 - Calendar Parser pro Kind ✅
+
+### Improvements
+
+- `src/lib/nostr/nip19.ts`: Encoder für `naddr`/`nevent`/`nprofile` (Bech32)
+- `src/lib/nostr/parser.ts`: `ParsedEvent.nostrUri` pro Kind + Note-Metadaten Parser (Kind 1) + OER Creator/Contributor Pubkeys aus `p` Tags
+- `src/lib/widget/nostr-feed.ts`: Profile-Ansicht (Autor-Klick), OER-Schlüsselmetadaten im Modal, Calendar ohne `start` wird ausgefiltert, Öffnen-Link nutzt `nostr:` URI
+
+- `src/lib/nostr/parser.ts`: Kind-spezifische Calendar-Parser für 31922/31923 (Date vs. Unix seconds) + `kind -> parser` Registry
+- `src/lib/nostr/types.ts`: `CalendarEvent` erweitert (title/content, TZ-Felder, strukturierte Participants)
+- `src/lib/nostr/filter.ts`: Suche für Calendar-Events nutzt `title`/`content`/`location`
+
 ## 2026-02-04 - MVP Implementierung ✅
 
 ### Features Implementiert
