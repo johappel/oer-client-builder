@@ -8,7 +8,7 @@ import type { WidgetConfig, ParsedEvent, ProfileMetadata } from '../nostr/types.
 import { NostrClient } from '../nostr/client.js';
 import { parseEvent, enrichWithProfiles, extractProfiles } from '../nostr/parser.js';
 import { applyTwoLevelFilter, createFilterConfig, extractCategories, extractAuthors } from '../nostr/filter.js';
-import { normalizePubkey, encodeNaddr, encodeNprofile } from '../nostr/nip19.js';
+import { normalizePubkey, encodeNaddr, encodeNprofile, decodeNaddrKind } from '../nostr/nip19.js';
 import { renderCard } from './card-renderers/index.js';
 
 const TEMPLATE = document.createElement('template');
@@ -634,6 +634,7 @@ TEMPLATE.innerHTML = `
 `;
 
 const NJUMP_BASE = 'https://njump.edufeed.org/';
+const KANBAN_CARDSBOARD_BASE = 'https://kanban.edufeed.org/cardsboard/';
 
 export class NostrFeedWidget extends HTMLElement {
   private shadow: ShadowRoot;
@@ -893,12 +894,54 @@ export class NostrFeedWidget extends HTMLElement {
     return `${NJUMP_BASE}${entity}`;
   }
 
+  private toKanbanBoardUrl(nostrUri: string): string | null {
+    const s = nostrUri.trim();
+    const entity = s.toLowerCase().startsWith('nostr:') ? s.slice('nostr:'.length).trim() : s;
+    if (!entity) return null;
+    if (!/^naddr1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+$/i.test(entity)) return null;
+    return `${KANBAN_CARDSBOARD_BASE}${entity}`;
+  }
+
   private normalizeOpenHref(href: string): string | null {
     const s = href.trim();
     if (!s) return null;
     if (s.toLowerCase().startsWith('nostr:')) return this.toNjumpUrl(s);
     if (this.isSafeHttpUrl(s)) return s;
     return null;
+  }
+
+  private parseATagCoordinate(aCoord: string): { kind: number; pubkey: string; identifier: string } | null {
+    const value = (aCoord || '').trim();
+    if (!value) return null;
+    const first = value.indexOf(':');
+    if (first <= 0) return null;
+    const second = value.indexOf(':', first + 1);
+    if (second <= first + 1) return null;
+    const kindStr = value.slice(0, first);
+    const pubkey = value.slice(first + 1, second);
+    const identifier = value.slice(second + 1);
+    const kind = Number(kindStr);
+    if (!Number.isFinite(kind) || kind <= 0) return null;
+    if (!pubkey || !identifier) return null;
+    return { kind, pubkey, identifier };
+  }
+
+  private aTagToNaddrNostrUri(aValue: string): { nostrUri: string; kind: number | null } | null {
+    const raw = (aValue || '').trim();
+    if (!raw) return null;
+
+    if (raw.toLowerCase().startsWith('nostr:naddr1')) {
+      return { nostrUri: raw, kind: decodeNaddrKind(raw) };
+    }
+
+    if (/^naddr1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+$/i.test(raw)) {
+      const nostrUri = `nostr:${raw}`;
+      return { nostrUri, kind: decodeNaddrKind(raw) };
+    }
+
+    const coord = this.parseATagCoordinate(raw);
+    if (!coord) return null;
+    return { nostrUri: `nostr:${encodeNaddr(coord.kind, coord.pubkey, coord.identifier)}`, kind: coord.kind };
   }
 
   private primaryHref(event: ParsedEvent): string | null {
@@ -925,6 +968,21 @@ export class NostrFeedWidget extends HTMLElement {
         if (normalized) return normalized;
       }
 
+      // Kanban-Boards: d-Tag ist ein Identifier (nostr:kanban:board-...), "Öffnen" soll direkt zur Board-App gehen.
+      if (typeof dRaw === 'string' && dRaw.startsWith('nostr:kanban:board-')) {
+        const kanbanRef = (event.event.tags || [])
+          .filter((t) => t[0] === 'a' && typeof t[1] === 'string')
+          .map((t) => this.aTagToNaddrNostrUri(String(t[1])))
+          .find((parsed) => parsed?.kind === 30301);
+
+        if (kanbanRef?.nostrUri) {
+          const boardUrl = this.toKanbanBoardUrl(kanbanRef.nostrUri);
+          if (boardUrl) return boardUrl;
+        }
+
+        return null;
+      }
+
       const url = typeof metadata?.url === 'string' ? metadata.url : '';
       if (url) {
         const normalized = this.normalizeOpenHref(url);
@@ -932,16 +990,10 @@ export class NostrFeedWidget extends HTMLElement {
       }
 
       const aCoord = event.event.tags.find((t) => t[0] === 'a')?.[1];
-      if (typeof aCoord === 'string' && aCoord.includes(':')) {
-        const first = aCoord.indexOf(':');
-        const second = first >= 0 ? aCoord.indexOf(':', first + 1) : -1;
-        const kindStr = first > 0 ? aCoord.slice(0, first) : '';
-        const pubkey = second > first ? aCoord.slice(first + 1, second) : '';
-        const identifier = second >= 0 ? aCoord.slice(second + 1) : '';
-        const kind = Number(kindStr);
-        if (Number.isFinite(kind) && kind > 0 && pubkey && identifier) {
-          const nostr = `nostr:${encodeNaddr(kind, pubkey, identifier)}`;
-          const normalized = this.normalizeOpenHref(nostr);
+      if (typeof aCoord === 'string') {
+        const parsed = this.aTagToNaddrNostrUri(aCoord);
+        if (parsed?.nostrUri) {
+          const normalized = this.normalizeOpenHref(parsed.nostrUri);
           if (normalized) return normalized;
         }
       }
@@ -1344,8 +1396,26 @@ export class NostrFeedWidget extends HTMLElement {
         (tags.find((t) => t[0] === 'd')?.[1] as string | undefined) ||
         '';
       if (d) {
-        if (this.isSafeHttpUrl(d)) this.addKvLinkRow(modalDescription, 'OER', d);
-        else this.addKvRow(modalDescription, 'd', d);
+        if (this.isSafeHttpUrl(d)) {
+          this.addKvLinkRow(modalDescription, 'OER', d);
+        } else if (d.startsWith('nostr:kanban:board-')) {
+          const kanbanRef = (event.event.tags || [])
+            .filter((t) => t[0] === 'a' && typeof t[1] === 'string')
+            .map((t) => this.aTagToNaddrNostrUri(String(t[1])))
+            .find((parsed) => parsed?.kind === 30301);
+          if (kanbanRef?.nostrUri) {
+            const boardUrl = this.toKanbanBoardUrl(kanbanRef.nostrUri);
+            if (boardUrl) {
+              this.addKvLinkRow(modalDescription, 'Kanban Board', boardUrl);
+            } else {
+              this.addKvRow(modalDescription, 'd', d);
+            }
+          } else {
+            this.addKvRow(modalDescription, 'd', d);
+          }
+        } else {
+          this.addKvRow(modalDescription, 'd', d);
+        }
       }
 
       const refs = uniq(tags.filter((t) => t[0] === 'r' && typeof t[1] === 'string').map((t) => t[1] as string)).filter((u) =>

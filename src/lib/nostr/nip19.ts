@@ -202,6 +202,36 @@ export function encodeNaddr(kind: number, pubkeyHex: string, identifier: string,
   return encodeBech32('naddr', words, 'bech32');
 }
 
+export function decodeNaddrKind(input: string): number | null {
+  const raw = input.trim();
+  const s = raw.toLowerCase().startsWith('nostr:') ? raw.slice('nostr:'.length).trim() : raw;
+  if (!s.toLowerCase().startsWith('naddr1')) return null;
+
+  const decoded = decodeBech32(s);
+  if (!decoded || decoded.hrp !== 'naddr') return null;
+  const bytes = convertBits(decoded.data, 5, 8, false);
+  if (!bytes) return null;
+
+  // TLV parse: [type, len, ...value] repeated
+  let i = 0;
+  while (i + 2 <= bytes.length) {
+    const t = bytes[i];
+    const len = bytes[i + 1];
+    i += 2;
+    if (i + len > bytes.length) return null;
+    const value = bytes.slice(i, i + len);
+    i += len;
+
+    // Kind (type 3) is 4 bytes big-endian uint32
+    if (t === 3 && len === 4) {
+      const kind = ((value[0] << 24) | (value[1] << 16) | (value[2] << 8) | value[3]) >>> 0;
+      return kind;
+    }
+  }
+
+  return null;
+}
+
 /**
  * Accepts either a 64-char hex pubkey or an `npub1...` and returns hex pubkey.
  */
