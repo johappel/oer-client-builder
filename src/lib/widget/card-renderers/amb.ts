@@ -127,10 +127,14 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
       `
       : '';
 
+  const normalizeName = (value: string) => value.trim().toLowerCase();
+  const avatarCreatorNameSet = new Set<string>(creatorEntries.map((c) => normalizeName(c.name)));
   const externalCreatorsText = uniq([
     ...(creatorNamesPlain ? [creatorNamesPlain] : []),
     ...externalCreatorNames
-  ]).slice(0, 6);
+  ])
+    .filter((name) => !avatarCreatorNameSet.has(normalizeName(name)))
+    .slice(0, 6);
 
   const creditsPieces: string[] = [];
   if (externalCreatorsText.length > 0) {
