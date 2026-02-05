@@ -7,6 +7,8 @@
 - `src/lib/nostr/nip19.ts`: Encoder für `naddr`/`nevent`/`nprofile` (Bech32)
 - `src/lib/nostr/parser.ts`: `ParsedEvent.nostrUri` pro Kind + Note-Metadaten Parser (Kind 1) + OER Creator/Contributor Pubkeys aus `p` Tags
 - `src/lib/widget/nostr-feed.ts`: Profile-Ansicht (Autor-Klick), OER-Schlüsselmetadaten im Modal, Calendar ohne `start` wird ausgefiltert, Öffnen-Link nutzt `nostr:` URI
+- Calendar Links: `r`-Tag wird als primärer Link genutzt; `location`-URL erscheint als „Online“ Link im Modal
+- Öffnen-Link: `nostr:*` wird für Browser-Klicks als `https://njump.edufeed.org/<entity>` ausgegeben
 
 - `src/lib/nostr/parser.ts`: Kind-spezifische Calendar-Parser für 31922/31923 (Date vs. Unix seconds) + `kind -> parser` Registry
 - `src/lib/nostr/types.ts`: `CalendarEvent` erweitert (title/content, TZ-Felder, strukturierte Participants)
@@ -22,7 +24,7 @@
 - Entwicklungsserver läuft auf http://localhost:5173/
 
 #### 2. Nostr Bibliothek (`src/lib/nostr/`)
-- **types.ts**: Alle Nostr Event-Typen definiert (Kind 0, 1, 30023, 30029, 30142, 31922, 31923)
+- **types.ts**: Alle Nostr Event-Typen definiert (Kind 0, 1, 30023, 30142, 31922, 31923)
 - **client.ts**: WebSocket-basierter Client mit Multi-Relay Support (inkl. Subscription-Flush bei Connect + optionalem Debug-Logging)
 - **nip19.ts**: NIP-19 Helper (npub → hex)
 - **parser.ts**: AMB-NIP, NIP-52, NIP-23 Parser

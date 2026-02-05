@@ -21,7 +21,7 @@
     authors: '',
     tags: '[]',
     search: '',
-    kinds: '30142,31922,1,30029,0',
+    kinds: '30142,31922,1,30023,0',
     maxItems: '50',
     showSearch: true,
     showCategories: true,
@@ -357,9 +357,9 @@
           type="text"
           id="kinds"
           bind:value={kinds}
-          placeholder="30142,31922,1,30029,0"
+          placeholder="30142,31922,1,30023,0"
         />
-        <small>30142=OER, 31922=Veranstaltung, 1=Note, 30029=Artikel, 0=Profil</small>
+        <small>30142=OER, 31922=Veranstaltung, 1=Note, 30023=Artikel, 0=Profil</small>
       </div>
       
       <div class="form-group">

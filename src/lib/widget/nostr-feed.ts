@@ -9,6 +9,7 @@ import { NostrClient } from '../nostr/client.js';
 import { parseEvent, enrichWithProfiles, extractProfiles } from '../nostr/parser.js';
 import { applyTwoLevelFilter, createFilterConfig, extractCategories, extractAuthors } from '../nostr/filter.js';
 import { normalizePubkey, encodeNprofile } from '../nostr/nip19.js';
+import { renderCard } from './card-renderers/index.js';
 
 const TEMPLATE = document.createElement('template');
 TEMPLATE.innerHTML = `
@@ -95,6 +96,7 @@ TEMPLATE.innerHTML = `
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
+      position: relative;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -163,6 +165,129 @@ TEMPLATE.innerHTML = `
       color: #7e22ce;
       font-size: 14px;
       font-weight: bold;
+    }
+
+    /* Calendar cards */
+    .card-calendar .card-content {
+      background: linear-gradient(135deg, #f97316, #ec4899);
+      color: #fff;
+    }
+
+    .card-calendar .card-title {
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .calendar-title-date {
+      font-weight: 500;
+      opacity: 0.85;
+      font-size: 0.9em;
+    }
+
+    .card-calendar .card-summary {
+      color: rgba(255, 255, 255, 0.92);
+      height: auto;
+    }
+
+    .card-calendar .card-author {
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .card-calendar .card-type {
+      background: rgba(255, 255, 255, 0.15);
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .card-calendar .card-link {
+      color: #fff;
+    }
+
+    .calendar-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      width: 64px;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+      background: #fff;
+    }
+
+    .calendar-badge-year {
+      background: #ef4444;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 0;
+      text-align: center;
+    }
+
+    .calendar-badge-day {
+      color: #111827;
+      font-size: 26px;
+      font-weight: 800;
+      line-height: 1.1;
+      padding: 8px 0 4px;
+      text-align: center;
+    }
+
+    .calendar-badge-month {
+      background: #f3f4f6;
+      color: #374151;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      padding: 4px 0 6px;
+      text-align: center;
+    }
+
+    .calendar-tags {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      max-width: 60%;
+    }
+
+    .calendar-tag {
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      line-height: 1.2;
+      backdrop-filter: blur(4px);
+    }
+
+    .event-meta {
+      margin: 10px 0 12px;
+      display: grid;
+      gap: 8px;
+      font-size: 13px;
+    }
+
+    .event-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0.95;
+      word-break: break-word;
+    }
+
+    .event-row a {
+      color: rgba(255, 255, 255, 0.95);
+      text-decoration: underline;
+    }
+
+    .event-icon {
+      width: 16px;
+      height: 16px;
+      fill: currentColor;
+      opacity: 0.9;
+      flex: 0 0 auto;
     }
 
     .loading {
@@ -406,6 +531,8 @@ TEMPLATE.innerHTML = `
   </div>
 `;
 
+const NJUMP_BASE = 'https://njump.edufeed.org/';
+
 export class NostrFeedWidget extends HTMLElement {
   private shadow: ShadowRoot;
   private client: NostrClient | null = null;
@@ -438,7 +565,7 @@ export class NostrFeedWidget extends HTMLElement {
 
   private parseConfig(): WidgetConfig {
     const relays = this.getAttribute('relays')?.split(',').map(r => r.trim()) || [];
-    const kinds = (this.getAttribute('kinds')?.split(',').map(k => parseInt(k.trim(), 10)) || [30142, 31922, 1, 30029, 0]) as any;
+    const kinds = (this.getAttribute('kinds')?.split(',').map(k => parseInt(k.trim(), 10)) || [30142, 31922, 1, 30023, 0]) as any;
     const rawAuthors = this.getAttribute('authors')?.split(',').map(a => a.trim()).filter(Boolean) || [];
     const authors = rawAuthors
       .map((a) => normalizePubkey(a))
@@ -653,11 +780,50 @@ export class NostrFeedWidget extends HTMLElement {
     }
   }
 
+  private toNjumpUrl(nostrUri: string): string | null {
+    const s = nostrUri.trim();
+    if (!s.toLowerCase().startsWith('nostr:')) return null;
+    const entity = s.slice('nostr:'.length).trim();
+    if (!entity) return null;
+    if (!/^[a-z0-9]+1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]+$/i.test(entity)) return null;
+    return `${NJUMP_BASE}${entity}`;
+  }
+
+  private normalizeOpenHref(href: string): string | null {
+    const s = href.trim();
+    if (!s) return null;
+    if (s.toLowerCase().startsWith('nostr:')) return this.toNjumpUrl(s);
+    if (this.isSafeHttpUrl(s)) return s;
+    return null;
+  }
+
   private primaryHref(event: ParsedEvent): string | null {
-    if (event.nostrUri && this.isSafeHref(event.nostrUri)) return event.nostrUri;
     const metadata = event.metadata as any;
+
+    if (event.type === 'calendar') {
+      const rUrl = typeof metadata?.url === 'string' ? metadata.url : '';
+      if (rUrl) {
+        const normalized = this.normalizeOpenHref(rUrl);
+        if (normalized) return normalized;
+      }
+
+      const location = typeof metadata?.location === 'string' ? metadata.location : '';
+      if (location) {
+        const normalized = this.normalizeOpenHref(location);
+        if (normalized) return normalized;
+      }
+    }
+
+    if (event.nostrUri) {
+      const normalized = this.normalizeOpenHref(event.nostrUri);
+      if (normalized) return normalized;
+    }
+
     const url = typeof metadata?.url === 'string' ? metadata.url : '';
-    if (url && this.isSafeHref(url)) return url;
+    if (url) {
+      const normalized = this.normalizeOpenHref(url);
+      if (normalized) return normalized;
+    }
     return null;
   }
 
@@ -666,6 +832,42 @@ export class NostrFeedWidget extends HTMLElement {
     const end = metadata?.end;
 
     if (!start) return null;
+
+    if (kind === 31922) {
+      const tz = metadata?.start_tzid || metadata?.start_tz;
+      const endTz = metadata?.end_tzid || metadata?.end_tz || tz;
+
+      const startUnix = typeof start === 'number' ? start : (typeof start === 'string' && /^[0-9]+$/.test(start) ? Number(start) : null);
+      const endUnix = typeof end === 'number' ? end : (typeof end === 'string' && /^[0-9]+$/.test(end) ? Number(end) : null);
+
+      if (startUnix) {
+        const fmt = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', ...(tz ? { timeZone: tz } : {}) });
+        const startStr = fmt.format(new Date(startUnix * 1000));
+        if (endUnix) {
+          const endFmt = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', ...(endTz ? { timeZone: endTz } : {}) });
+          const endStr = endFmt.format(new Date(endUnix * 1000));
+          return startStr === endStr ? startStr : `${startStr} – ${endStr}`;
+        }
+        return startStr;
+      }
+
+      if (typeof start === 'string') {
+        const startDate = new Date(`${start}T00:00:00`);
+        const startStr = Number.isFinite(startDate.getTime())
+          ? new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(startDate)
+          : start;
+
+        if (typeof end === 'string' && end) {
+          const endDate = new Date(`${end}T00:00:00`);
+          const endStr = Number.isFinite(endDate.getTime())
+            ? new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(endDate)
+            : end;
+          return startStr === endStr ? startStr : `${startStr} – ${endStr}`;
+        }
+
+        return startStr;
+      }
+    }
 
     if (kind === 31923 && typeof start === 'number') {
       const tz = metadata?.start_tzid || metadata?.start_tz;
@@ -772,7 +974,7 @@ export class NostrFeedWidget extends HTMLElement {
     }
 
     const profileUri = `nostr:${encodeNprofile(pubkey)}`;
-    modalLink.href = profileUri;
+    modalLink.href = this.toNjumpUrl(profileUri) || profileUri;
     modalLink.rel = 'noopener noreferrer';
     modalLink.style.display = 'inline-block';
 
@@ -786,15 +988,13 @@ export class NostrFeedWidget extends HTMLElement {
     const metadata = event.metadata as any;
     const author = event.author;
     const authorPicture = author?.picture && this.isSafeHttpUrl(author.picture) ? author.picture : '';
+    const authorName = author ? author.name || author.display_name || null : null;
 
     const title = metadata?.title || metadata?.name || 'Unbenannt';
     const summary = metadata?.summary || metadata?.description || event.event.content?.slice(0, 100) || '';
-    const when = event.type === 'calendar' ? this.formatCalendarRange(event.event.kind, metadata) : null;
-    const displaySummary = when ? `${when} • ${summary}` : summary;
     const imageRaw = typeof metadata?.image === 'string' ? metadata.image : '';
     const image = imageRaw && this.isSafeHttpUrl(imageRaw) ? imageRaw : '';
     const href = this.primaryHref(event);
-    const url = href || '';
 
     const typeLabels: Record<string, string> = {
       amb: 'OER Material',
@@ -804,6 +1004,32 @@ export class NostrFeedWidget extends HTMLElement {
       profile: 'Profil'
     };
 
+    const tags = event.event.tags.filter((t) => t[0] === 't').map((t) => t[1]);
+
+    const locationRaw = typeof metadata?.location === 'string' ? metadata.location : '';
+    const calendarLocationUrl = locationRaw && this.isSafeHttpUrl(locationRaw) ? locationRaw : null;
+    const calendarLocationText = !calendarLocationUrl && locationRaw ? locationRaw : null;
+
+    const rendered = renderCard({
+      event,
+      config: this.config,
+      typeLabel: typeLabels[event.type] || event.type,
+      title,
+      summary,
+      imageUrl: image || null,
+      href,
+      tags,
+      author,
+      authorName,
+      authorPicture: authorPicture || null,
+      calendarLocationUrl,
+      calendarLocationText
+    });
+
+    card.className = ['card', rendered.cardClassName].filter(Boolean).join(' ');
+    card.innerHTML = rendered.html;
+
+    /* legacy card template (replaced by renderers)
     card.innerHTML = `
       <div class="card-image" style="${image ? `background-image: url('${image}')` : ''}">
         ${!image ? 'NO IMAGE' : ''}
@@ -812,20 +1038,21 @@ export class NostrFeedWidget extends HTMLElement {
         <span class="card-type">${typeLabels[event.type] || event.type}</span>
         <h3 class="card-title">${title}</h3>
         <p class="card-summary">${displaySummary.length > 100 ? displaySummary.slice(0, 100) + '...' : displaySummary}</p>
-        ${this.config.showAuthor && author ? `
+        ${this.config.showAuthor && authorName ? `
           <div class="card-meta">
             <div class="card-avatar" style="${authorPicture ? `background-image: url('${authorPicture}')` : ''}"></div>
-            <span class="card-author">${author.name || author.display_name || 'Unbekannt'}</span>
+            <span class="card-author">${authorName || 'Unbekannt'}</span>
           </div>
         ` : ''}
         <a class="card-link" href="${url || '#'}" target="_blank">Öffnen &rarr;</a>
       </div>
     `;
+    */
 
     const linkEl = card.querySelector('.card-link') as HTMLAnchorElement | null;
     if (linkEl) {
-      if (url) {
-        linkEl.href = url;
+      if (href) {
+        linkEl.href = href;
         linkEl.rel = 'noopener noreferrer';
       } else {
         linkEl.style.display = 'none';
@@ -877,7 +1104,9 @@ export class NostrFeedWidget extends HTMLElement {
     if (event.type === 'calendar') {
       const when = this.formatCalendarRange(event.event.kind, metadata);
       if (when) extraLines.push(`Termin: ${when}`);
-      if (metadata?.location) extraLines.push(`Ort: ${String(metadata.location)}`);
+      const location = typeof metadata?.location === 'string' ? metadata.location : '';
+      const locationUrl = location && this.isSafeHttpUrl(location) ? location : '';
+      if (!locationUrl && location) extraLines.push(`Ort: ${location}`);
       if (metadata?.start === undefined) extraLines.push('Hinweis: start fehlt (Event ist unvollständig).');
     }
     if (event.type === 'article') {
@@ -917,6 +1146,29 @@ export class NostrFeedWidget extends HTMLElement {
     modalImage.style.backgroundImage = image ? `url('${image}')` : 'none';
     modalTitle.textContent = title;
     modalDescription.textContent = description;
+
+    if (event.type === 'calendar') {
+      const location = typeof metadata?.location === 'string' ? metadata.location : '';
+      if (location && this.isSafeHttpUrl(location)) {
+        const row = document.createElement('div');
+        row.className = 'kv-row';
+
+        const label = document.createElement('span');
+        label.className = 'kv-label';
+        label.textContent = 'Online: ';
+
+        const a = document.createElement('a');
+        a.href = location;
+        a.target = '_blank';
+        a.rel = 'noopener noreferrer';
+        a.textContent = location;
+
+        row.appendChild(label);
+        row.appendChild(a);
+        modalDescription.appendChild(document.createElement('br'));
+        modalDescription.appendChild(row);
+      }
+    }
 
     if (this.config.showAuthor && author) {
       const authorPic = author.picture && this.isSafeHttpUrl(author.picture) ? author.picture : '';

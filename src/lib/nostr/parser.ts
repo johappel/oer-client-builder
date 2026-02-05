@@ -103,6 +103,11 @@ function parseCalendarEventBase(event: NostrEvent): CalendarEvent {
       case 'location':
         calendarEvent.location = value;
         break;
+      case 'r':
+        if (!calendarEvent.externalRefs) calendarEvent.externalRefs = [];
+        calendarEvent.externalRefs.push(value);
+        if (!calendarEvent.url) calendarEvent.url = value;
+        break;
       case 'g':
         calendarEvent.g = value;
         break;
@@ -207,7 +212,7 @@ export function parseProfileEvent(event: NostrEvent): ProfileMetadata {
 }
 
 /**
- * Artikel Parser (Kind 30023, 30029)
+ * Artikel Parser (Kind 30023)
  */
 export function parseArticleEvent(event: NostrEvent): ArticleMetadata {
   const article: ArticleMetadata = {};
@@ -283,7 +288,6 @@ export function getEventType(event: NostrEvent): ParsedEvent['type'] {
     case 0:
       return 'profile';
     case 30023:
-    case 30029:
       return 'article';
     case 1:
       return 'note';
@@ -300,7 +304,6 @@ const metadataParsersByKind: Partial<Record<NostrEvent['kind'], MetadataParser>>
   31923: parseCalendarEventTime,
   0: parseProfileEvent,
   30023: parseArticleEvent,
-  30029: parseArticleEvent,
   1: parseNoteEvent
 };
 
@@ -317,7 +320,7 @@ function computeNostrUri(event: NostrEvent): string | undefined {
     if (event.kind === 1) {
       return `nostr:${encodeNevent(event.id)}`;
     }
-    if (event.kind === 30142 || event.kind === 31922 || event.kind === 31923 || event.kind === 30023 || event.kind === 30029) {
+    if (event.kind === 30142 || event.kind === 31922 || event.kind === 31923 || event.kind === 30023) {
       const d = firstTagValue(event, 'd');
       if (!d) return undefined;
       return `nostr:${encodeNaddr(event.kind, event.pubkey, d)}`;

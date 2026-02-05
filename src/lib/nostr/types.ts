@@ -7,7 +7,6 @@ export type NostrEventKind =
   | 0      // Profil-Metadaten
   | 1      // Kurzer Text-Note
   | 30023  // Long-form Content (Artikel)
-  | 30029  // Parameterized Replaceable Event (Artikel)
   | 30142  // AMB-NIP (OER Material)
   | 31922  // Calendar Event (date-based)
   | 31923; // Calendar Event (time-based)
@@ -127,6 +126,8 @@ export interface CalendarEvent {
   // Media / location
   image?: string;
   location?: string;
+  url?: string; // primary external link (from "r" tag)
+  externalRefs?: string[]; // "r" tags
   g?: string; // geohash
 
   // Time
@@ -161,7 +162,7 @@ export interface ProfileMetadata {
 }
 
 /**
- * Article Metadata (Kind 30023, 30029)
+ * Article Metadata (Kind 30023)
  */
 export interface ArticleMetadata {
   title?: string;

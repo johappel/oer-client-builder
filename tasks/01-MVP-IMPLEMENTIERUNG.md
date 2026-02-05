@@ -24,7 +24,7 @@ Implementierung des MVP (Minimum Viable Product) für den Nostr Feed Widget Buil
 ### 2. Nostr Bibliothek (`src/lib/nostr/`) ✅
 
 #### `types.ts`
-- Definierte alle Nostr Event-Typen (Kind 0, 1, 30023, 30029, 30142, 31922, 31923)
+- Definierte alle Nostr Event-Typen (Kind 0, 1, 30023, 30142, 31922, 31923)
 - WidgetConfig Schnittstelle mit allen Konfigurationsoptionen
 - FilterConfig für Two-Level Filtering
 - AMBMetadata, CalendarEvent, ProfileMetadata Schnittstellen
@@ -40,7 +40,7 @@ Implementierung des MVP (Minimum Viable Product) für den Nostr Feed Widget Buil
 - AMB-NIP (Kind 30142) Parser mit JSON-Flattening
 - NIP-52 Calendar Event Parser
 - Profil-Metadaten Parser (Kind 0)
-- Artikel Parser (Kind 30023, 30029)
+- Artikel Parser (Kind 30023)
 - Event-Typ Erkennung
 - Profil-Anreicherung für Events
 
