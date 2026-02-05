@@ -68,7 +68,6 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
     '';
 
   const aboutLabels = extractPrefLabels(tags, 'about', lang);
-  const audienceLabels = extractPrefLabels(tags, 'audience', lang);
 
   const d = (typeof metadata?.d === 'string' ? metadata.d : '') || firstTagValue(tags, 'd') || '';
 
@@ -152,21 +151,14 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
 
   const creatorsHtml = `${avatarCreatorsHtml}${creditsHtml}`;
 
-  const keywords = uniq([
-    ...ctx.tags,
-    ...tags.filter((t) => t[0] === 'keywords' && typeof t[1] === 'string').map((t) => t[1])
-  ]).slice(0, 4);
+  const keywords = uniq(tags.filter((t) => t[0] === 'keywords' && typeof t[1] === 'string').map((t) => t[1])).slice(0, 4);
   const keywordsHtml = keywords.length > 0 ? `<div class="oer-keywords">${keywords.map((k) => `<span class="oer-chip">${k}</span>`).join('')}</div>` : '';
 
   const chips: string[] = [];
-  if (educationalLevel) chips.push(`<span class="oer-chip oer-chip-level">${educationalLevel}</span>`);
-  if (resourceType) chips.push(`<span class="oer-chip oer-chip-type">${resourceType}</span>`);
+  if (educationalLevel) chips.push(`<span class="oer-chip">${educationalLevel}</span>`);
+  if (resourceType) chips.push(`<span class="oer-chip">${resourceType}</span>`);
+  aboutLabels.slice(0, 3).forEach((label) => chips.push(`<span class="oer-chip">${label}</span>`));
   const chipsHtml = chips.length > 0 ? `<div class="oer-chips">${chips.join('')}</div>` : '';
-
-  const metaPieces: string[] = [];
-  if (audienceLabels.length > 0) metaPieces.push(`<span title="Zielgruppe">${audienceLabels[0]}</span>`);
-  if (aboutLabels.length > 0) metaPieces.push(`<span title="Thema">${aboutLabels.slice(0, 3).join(', ')}</span>`);
-  const metaHtml = metaPieces.length > 0 ? `<div class="oer-meta">${metaPieces.join('')}</div>` : '';
 
   const description = (typeof metadata?.summary === 'string' && metadata.summary) || (typeof metadata?.description === 'string' && metadata.description) || ctx.summary || '';
   const descriptionShort = description.length > 140 ? description.slice(0, 140) + '…' : description;
@@ -177,9 +169,12 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
       .map((t) => String(t[1]))
       .filter((t) => t && t !== 'LearningResource')
   ).slice(0, 2);
+
+  const overlayTags = uniq(ctx.tags).slice(0, 3);
+
   const overlayHtml =
-    overlayTypes.length > 0
-      ? `<div class="oer-image-overlay">${overlayTypes.map((t) => `<span class="oer-overlay-chip">${t}</span>`).join('')}</div>`
+    overlayTypes.length > 0 || overlayTags.length > 0
+      ? `<div class="oer-image-overlay">${[...overlayTypes, ...overlayTags].map((t) => `<span class="oer-overlay-chip">${t}</span>`).join('')}</div>`
       : '<div class="oer-image-overlay"></div>';
 
   return {
@@ -193,7 +188,6 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
         <span class="card-type">${ctx.typeLabel}</span>
         <h3 class="card-title">${ctx.title}</h3>
         ${chipsHtml}
-        ${metaHtml}
         ${descriptionShort ? `<p class="card-summary oer-summary">${descriptionShort}</p>` : ''}
         ${keywordsHtml}
         ${creatorsHtml}

@@ -353,19 +353,6 @@ TEMPLATE.innerHTML = `
       margin: 8px 0 10px;
     }
 
-    .oer-meta {
-      display: grid;
-      gap: 6px;
-      font-size: 12px;
-      line-height: 1.35;
-      margin-bottom: 10px;
-      opacity: 0.95;
-    }
-
-    .oer-meta span {
-      opacity: 0.95;
-    }
-
     .oer-summary {
       color: rgba(255, 255, 255, 0.92);
       height: auto;
@@ -379,29 +366,12 @@ TEMPLATE.innerHTML = `
       margin-bottom: 10px;
     }
 
-    .oer-level {
-      margin: 6px 0 10px;
-    }
-
     .oer-chip {
       font-size: 12px;
       padding: 4px 10px;
       border-radius: 9999px;
       background: rgba(0, 0, 0, 0.28);
       color: rgba(255, 255, 255, 0.92);
-    }
-
-    .oer-chip-level {
-      background: rgba(255, 255, 255, 0.18);
-      color: rgba(255, 255, 255, 0.95);
-      font-weight: 800;
-      letter-spacing: 0.01em;
-    }
-
-    .oer-chip-type {
-      background: rgba(0, 0, 0, 0.28);
-      color: rgba(255, 255, 255, 0.92);
-      font-weight: 700;
     }
 
     .oer-image-overlay {
