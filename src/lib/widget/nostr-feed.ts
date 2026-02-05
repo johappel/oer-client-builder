@@ -84,6 +84,9 @@ TEMPLATE.innerHTML = `
       box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
       transition: transform 0.2s;
       cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
     }
 
     .card:hover {
@@ -101,10 +104,14 @@ TEMPLATE.innerHTML = `
       align-items: center;
       justify-content: center;
       color: #ccc;
+      flex: 0 0 auto;
     }
 
     .card-content {
       padding: 15px;
+      display: flex;
+      flex-direction: column;
+      flex: 1 1 auto;
     }
 
     .card-title {
@@ -152,6 +159,7 @@ TEMPLATE.innerHTML = `
       font-size: 11px;
       color: #666;
       margin-bottom: 10px;
+      width: fit-content;
     }
 
     .card-date {
@@ -165,6 +173,8 @@ TEMPLATE.innerHTML = `
       color: #7e22ce;
       font-size: 14px;
       font-weight: bold;
+      margin-top: auto;
+      align-self: flex-start;
     }
 
     /* Calendar cards */
