@@ -21,10 +21,10 @@ export function renderDefaultCard(ctx: CardRenderContext): RenderedCard {
         <span class="card-type">${ctx.typeLabel}</span>
         <h3 class="card-title">${ctx.title}</h3>
         <p class="card-summary">${ctx.summary.length > 100 ? ctx.summary.slice(0, 100) + '...' : ctx.summary}</p>
-        <div class="card-footer">
-          ${footerLeftHtml}
-          <a class="card-link" href="${ctx.href || '#'}" target="_blank">Öffnen →</a>
-        </div>
+      </div>
+      <div class="card-footer">
+        ${footerLeftHtml}
+        <a class="card-link" href="${ctx.href || '#'}" target="_blank">Öffnen →</a>
       </div>
     `
   };

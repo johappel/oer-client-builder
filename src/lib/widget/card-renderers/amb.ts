@@ -205,13 +205,14 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
         <span class="card-type">${ctx.typeLabel}</span>
         <h3 class="card-title">${ctx.title}</h3>
         ${descriptionShort ? `<p class="card-summary oer-summary">${descriptionShort}</p>` : ''}
-        ${creatorsHtml}
         ${keywordsHtml}
+        ${creatorsHtml}
         
-        <div class="card-footer">
+        
+      </div>
+      <div class="card-footer">
           ${footerLeftHtml}
           <a class="card-link" href="${ctx.href || '#'}" target="_blank">Öffnen →</a>
-        </div>
       </div>
     `
   };

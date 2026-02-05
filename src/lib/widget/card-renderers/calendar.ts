@@ -218,10 +218,10 @@ export function renderCalendarCard(ctx: CardRenderContext): RenderedCard {
           ${locationRow}
         </div>
         <p class="card-summary">${description.length > 160 ? description.slice(0, 160) + '…' : description}</p>
-        <div class="card-footer">
+      </div>
+      <div class="card-footer">
           ${footerLeftHtml}
           <a class="card-link" href="${ctx.href || '#'}" target="_blank">Öffnen →</a>
-        </div>
       </div>
     `
   };

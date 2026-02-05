@@ -273,10 +273,13 @@ TEMPLATE.innerHTML = `
 
     .card-footer {
       margin-top: auto;
+      border-top: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
+      padding: 12px;
+
     }
 
     .card-footer .card-meta {
@@ -375,7 +378,7 @@ TEMPLATE.innerHTML = `
     .oer-creators {
       display: flex;
       gap: 6px;
-      margin: 10px 0 0;
+      margin: 10px 0;
       flex-wrap: wrap;
     }
 
@@ -384,6 +387,7 @@ TEMPLATE.innerHTML = `
       display: grid;
       gap: 6px;
       margin-top: 10px;
+      margin-bottom: 8px;
       font-size: 12px;
       line-height: 1.35;
       opacity: 0.95;
@@ -488,16 +492,15 @@ TEMPLATE.innerHTML = `
     }
 
     .oer-keyword-chip {
-      background: rgba(0, 0, 0, 0.15);
+      background: rgba(0, 0, 0, 0.05);
       backdrop-filter: blur(4px);
       border: 1px solid rgba(255, 255, 255, 0.18);
       border-radius: 9999px;
-      padding: 2px 5px;
+      padding: 2px 8px;
       max-width: 220px;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-      padding: 4px 10px;
       font-size: 12px;
     }
 
