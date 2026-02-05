@@ -151,14 +151,13 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
 
   const creatorsHtml = `${avatarCreatorsHtml}${creditsHtml}`;
 
-  const keywords = uniq(tags.filter((t) => t[0] === 'keywords' && typeof t[1] === 'string').map((t) => t[1])).slice(0, 4);
-  const keywordsHtml = keywords.length > 0 ? `<div class="oer-keywords">${keywords.map((k) => `<span class="oer-chip">${k}</span>`).join('')}</div>` : '';
+  // Keywords nicht in der Card anzeigen (nur im Detail-Dialog)
 
-  const chips: string[] = [];
-  if (educationalLevel) chips.push(`<span class="oer-chip">${educationalLevel}</span>`);
-  if (resourceType) chips.push(`<span class="oer-chip">${resourceType}</span>`);
-  aboutLabels.slice(0, 3).forEach((label) => chips.push(`<span class="oer-chip">${label}</span>`));
-  const chipsHtml = chips.length > 0 ? `<div class="oer-chips">${chips.join('')}</div>` : '';
+  const overlayChips = uniq([educationalLevel, resourceType, ...aboutLabels]).filter(Boolean).slice(0, 3);
+  const overlayChipsHtml =
+    overlayChips.length > 0
+      ? `<div class="oer-chip-stack">${overlayChips.map((c) => `<span class="oer-chip oer-chip-overlay">${c}</span>`).join('')}</div>`
+      : '';
 
   const description = (typeof metadata?.summary === 'string' && metadata.summary) || (typeof metadata?.description === 'string' && metadata.description) || ctx.summary || '';
   const descriptionShort = description.length > 140 ? description.slice(0, 140) + '…' : description;
@@ -172,25 +171,25 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
 
   const overlayTags = uniq(ctx.tags).slice(0, 3);
 
-  const overlayHtml =
+  const keywordsHtml =
     overlayTypes.length > 0 || overlayTags.length > 0
-      ? `<div class="oer-image-overlay">${[...overlayTypes, ...overlayTags].map((t) => `<span class="oer-overlay-chip">${t}</span>`).join('')}</div>`
-      : '<div class="oer-image-overlay"></div>';
+      ? `<div class="oer-keywords-stack">${[...overlayTypes, ...overlayTags].map((t) => `<span class="oer-keyword-chip">${t}</span>`).join('')}</div>`
+      : '<div class="oer-keywords-stack"></div>';
 
   return {
     cardClassName: 'card-amb',
     html: `
       <div class="card-image" style="${ctx.imageUrl ? `background-image: url('${ctx.imageUrl}')` : ''}">
         ${!ctx.imageUrl ? 'NO IMAGE' : ''}
-        ${overlayHtml}
+        ${overlayChipsHtml}
       </div>
       <div class="card-content">
         <span class="card-type">${ctx.typeLabel}</span>
         <h3 class="card-title">${ctx.title}</h3>
-        ${chipsHtml}
         ${descriptionShort ? `<p class="card-summary oer-summary">${descriptionShort}</p>` : ''}
-        ${keywordsHtml}
         ${creatorsHtml}
+        ${keywordsHtml}
+        
         <a class="card-link" href="${ctx.href || '#'}" target="_blank">Öffnen →</a>
       </div>
     `
