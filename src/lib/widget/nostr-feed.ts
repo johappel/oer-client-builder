@@ -451,8 +451,9 @@ TEMPLATE.innerHTML = `
       flex-direction: column;
       gap: 8px;
       align-items: flex-end;
-      max-width: 70%;
+      max-width: 60%;
       pointer-events: none;
+      min-width: 0;
     }
 
     .oer-summary {
@@ -475,6 +476,15 @@ TEMPLATE.innerHTML = `
       border-radius: 9999px;
       background: rgba(0, 0, 0, 0.28);
       color: rgba(255, 255, 255, 0.92);
+    }
+
+    .oer-chip-overlay {
+      display: inline-block;
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-sizing: border-box;
     }
 
     .oer-keyword-chip {
