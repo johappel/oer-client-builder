@@ -285,8 +285,16 @@ TEMPLATE.innerHTML = `
     .oer-creators {
       display: flex;
       gap: 6px;
-      margin: 6px 0 10px;
+      margin: 0;
       flex-wrap: wrap;
+      padding: 10px 15px 0;
+    }
+
+    .oer-avatar {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 100%;
     }
 
     .oer-avatar-img {
@@ -305,31 +313,39 @@ TEMPLATE.innerHTML = `
       border: 1px solid rgba(255, 255, 255, 0.25);
     }
 
+    .oer-avatar-name {
+      font-size: 12px;
+      color: #374151;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 180px;
+    }
+
     .oer-creators-text {
       margin: 6px 0 10px;
       font-size: 12px;
       opacity: 0.92;
     }
 
+    .oer-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 8px 0 10px;
+    }
+
     .oer-meta {
+      display: grid;
+      gap: 6px;
       font-size: 12px;
       line-height: 1.35;
       margin-bottom: 10px;
       opacity: 0.95;
     }
 
-    .oer-row {
-      margin: 4px 0;
-    }
-
-    .oer-label {
-      font-weight: 700;
-    }
-
-    .oer-meta a {
-      color: #fff;
-      text-decoration: underline;
-      word-break: break-word;
+    .oer-meta span {
+      opacity: 0.95;
     }
 
     .oer-summary {
@@ -362,6 +378,34 @@ TEMPLATE.innerHTML = `
       color: rgba(255, 255, 255, 0.95);
       font-weight: 800;
       letter-spacing: 0.01em;
+    }
+
+    .oer-chip-type {
+      background: rgba(0, 0, 0, 0.28);
+      color: rgba(255, 255, 255, 0.92);
+      font-weight: 700;
+    }
+
+    .oer-image-overlay {
+      position: absolute;
+      left: 10px;
+      right: 10px;
+      bottom: 10px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+      pointer-events: none;
+    }
+
+    .oer-overlay-chip {
+      background: rgba(0, 0, 0, 0.55);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      line-height: 1.2;
+      backdrop-filter: blur(4px);
     }
 
     .event-meta {
