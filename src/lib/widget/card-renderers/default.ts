@@ -15,8 +15,7 @@ export function renderDefaultCard(ctx: CardRenderContext): RenderedCard {
 
   return {
     html: `
-      <div class="card-image" style="${ctx.imageUrl ? `background-image: url('${ctx.imageUrl}')` : ''}">
-        ${!ctx.imageUrl ? 'NO IMAGE' : ''}
+      <div class="card-image${ctx.imageUrl ? '' : ' card-image--placeholder'}" style="${ctx.imageUrl ? `background-image: url('${ctx.imageUrl}')` : ''}">
       </div>
       <div class="card-content">
         <span class="card-type">${ctx.typeLabel}</span>

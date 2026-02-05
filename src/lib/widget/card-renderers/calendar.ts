@@ -207,8 +207,7 @@ export function renderCalendarCard(ctx: CardRenderContext): RenderedCard {
   return {
     cardClassName: 'card-calendar',
     html: `
-      <div class="card-image" style="${ctx.imageUrl ? `background-image: url('${ctx.imageUrl}')` : ''}">
-        ${!ctx.imageUrl ? 'NO IMAGE' : ''}
+      <div class="card-image${ctx.imageUrl ? '' : ' card-image--placeholder'}" style="${ctx.imageUrl ? `background-image: url('${ctx.imageUrl}')` : ''}">
         ${badgeHtml}
         ${tagsHtml}
       </div>

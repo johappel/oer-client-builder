@@ -198,8 +198,7 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
   return {
     cardClassName: 'card-amb',
     html: `
-      <div class="card-image" style="${ctx.imageUrl ? `background-image: url('${ctx.imageUrl}')` : ''}">
-        ${!ctx.imageUrl ? 'NO IMAGE' : ''}
+      <div class="card-image${ctx.imageUrl ? '' : ' card-image--placeholder'}" style="${ctx.imageUrl ? `background-image: url('${ctx.imageUrl}')` : ''}">
         ${overlayChipsHtml}
       </div>
       <div class="card-content">

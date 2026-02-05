@@ -19,6 +19,84 @@ TEMPLATE.innerHTML = `
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       max-width: 1200px;
       margin: 0 auto;
+
+      --surface: #ffffff;
+      --surface-2: #f8fafc;
+      --text: #0f172a;
+      --muted: #475569;
+      --muted-2: #64748b;
+      --border: #e2e8f0;
+      --shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+
+      --chip-bg: #f1f5f9;
+      --chip-bg-hover: #e2e8f0;
+      --chip-active: #7e22ce;
+      --chip-active-text: #ffffff;
+
+      --input-bg: #ffffff;
+
+      --link: #7e22ce;
+      --link-hover: #6b21a8;
+
+      --modal-bg: #ffffff;
+
+      --placeholder-1: rgba(126, 34, 206, 0.22);
+      --placeholder-2: rgba(14, 165, 233, 0.18);
+      --placeholder-3: rgba(236, 72, 153, 0.12);
+    }
+
+    :host([theme="dark"]) {
+      --surface: #0b1220;
+      --surface-2: #111827;
+      --text: #f8fafc;
+      --muted: #cbd5e1;
+      --muted-2: #94a3b8;
+      --border: #1f2937;
+      --shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+
+      --chip-bg: #1f2937;
+      --chip-bg-hover: #334155;
+      --chip-active: #a855f7;
+      --chip-active-text: #0b1220;
+
+      --input-bg: #0b1220;
+
+      --link: #c084fc;
+      --link-hover: #e9d5ff;
+
+      --modal-bg: #0b1220;
+
+      --placeholder-1: rgba(168, 85, 247, 0.22);
+      --placeholder-2: rgba(56, 189, 248, 0.16);
+      --placeholder-3: rgba(236, 72, 153, 0.10);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :host([theme="auto"]) {
+        --surface: #0b1220;
+        --surface-2: #111827;
+        --text: #f8fafc;
+        --muted: #cbd5e1;
+        --muted-2: #94a3b8;
+        --border: #1f2937;
+        --shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+
+        --chip-bg: #1f2937;
+        --chip-bg-hover: #334155;
+        --chip-active: #a855f7;
+        --chip-active-text: #0b1220;
+
+        --input-bg: #0b1220;
+
+        --link: #c084fc;
+        --link-hover: #e9d5ff;
+
+        --modal-bg: #0b1220;
+
+        --placeholder-1: rgba(168, 85, 247, 0.22);
+        --placeholder-2: rgba(56, 189, 248, 0.16);
+        --placeholder-3: rgba(236, 72, 153, 0.10);
+      }
     }
 
     .nostr-feed-container {
@@ -33,15 +111,17 @@ TEMPLATE.innerHTML = `
       width: 100%;
       padding: 12px 15px;
       font-size: 16px;
-      border: 1px solid #ddd;
+      border: 1px solid var(--border);
       border-radius: 25px;
       box-sizing: border-box;
       outline: none;
       transition: border-color 0.2s;
+      background: var(--input-bg);
+      color: var(--text);
     }
 
     .search-input:focus {
-      border-color: #7e22ce;
+      border-color: var(--link);
     }
 
     .categories {
@@ -53,21 +133,22 @@ TEMPLATE.innerHTML = `
 
     .category-chip {
       padding: 6px 12px;
-      background: #f3f4f6;
+      background: var(--chip-bg);
       border: none;
       border-radius: 20px;
       cursor: pointer;
       font-size: 14px;
       transition: background 0.2s;
+      color: var(--text);
     }
 
     .category-chip:hover {
-      background: #e5e7eb;
+      background: var(--chip-bg-hover);
     }
 
     .category-chip.active {
-      background: #7e22ce;
-      color: white;
+      background: var(--chip-active);
+      color: var(--chip-active-text);
     }
 
     .grid {
@@ -77,11 +158,11 @@ TEMPLATE.innerHTML = `
     }
 
     .card {
-      border: 1px solid #eee;
+      border: 1px solid var(--border);
       border-radius: 8px;
       overflow: hidden;
-      background: #fff;
-      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+      background: var(--surface);
+      box-shadow: var(--shadow);
       transition: transform 0.2s;
       cursor: pointer;
       display: flex;
@@ -95,7 +176,7 @@ TEMPLATE.innerHTML = `
 
     .card-image {
       height: 160px;
-      background-color: #f0f0f0;
+      background-color: var(--surface-2);
       background-size: cover;
       background-position: center;
       background-repeat: no-repeat;
@@ -103,8 +184,15 @@ TEMPLATE.innerHTML = `
       display: flex;
       align-items: center;
       justify-content: center;
-      color: #ccc;
+      color: var(--muted-2);
       flex: 0 0 auto;
+    }
+
+    .card-image--placeholder {
+      background-image:
+        radial-gradient(circle at 18% 28%, var(--placeholder-1), transparent 55%),
+        radial-gradient(circle at 78% 18%, var(--placeholder-2), transparent 50%),
+        linear-gradient(135deg, var(--placeholder-3), var(--surface-2));
     }
 
     .card-content {
@@ -112,19 +200,21 @@ TEMPLATE.innerHTML = `
       display: flex;
       flex-direction: column;
       flex: 1 1 auto;
+      color: var(--text);
+      background: var(--surface);
     }
 
     .card-title {
       margin: 0 0 8px;
       font-size: 16px;
-      color: #333;
+      color: var(--text);
       font-weight: 600;
     }
 
     .card-summary {
       margin: 0 0 15px;
       font-size: 14px;
-      color: #666;
+      color: var(--muted);
       line-height: 1.4;
       height: 40px;
       overflow: hidden;
@@ -148,16 +238,16 @@ TEMPLATE.innerHTML = `
 
     .card-author {
       font-size: 12px;
-      color: #666;
+      color: var(--muted-2);
     }
 
     .card-type {
       display: inline-block;
       padding: 2px 8px;
-      background: #f3f4f6;
+      background: var(--chip-bg);
       border-radius: 4px;
       font-size: 11px;
-      color: #666;
+      color: var(--muted);
       margin-bottom: 10px;
       width: fit-content;
     }
@@ -170,11 +260,15 @@ TEMPLATE.innerHTML = `
 
     .card-link {
       text-decoration: none;
-      color: #7e22ce;
+      color: var(--link);
       font-size: 14px;
       font-weight: bold;
       margin-top: auto;
       align-self: flex-start;
+    }
+
+    .card-link:hover {
+      color: var(--link-hover);
     }
 
     .card-footer {
@@ -200,13 +294,7 @@ TEMPLATE.innerHTML = `
 
     /* Calendar cards */
     .card-calendar .card-content {
-      background: linear-gradient(135deg, #f97316, #ec4899);
-      color: #fff;
-    }
-
-    .card-calendar .card-title {
-      color: #fff;
-      margin-bottom: 10px;
+      border-top: 3px solid #f97316;
     }
 
     .calendar-title-date {
@@ -216,21 +304,7 @@ TEMPLATE.innerHTML = `
     }
 
     .card-calendar .card-summary {
-      color: rgba(255, 255, 255, 0.92);
       height: auto;
-    }
-
-    .card-calendar .card-author {
-      color: rgba(255, 255, 255, 0.9);
-    }
-
-    .card-calendar .card-type {
-      background: rgba(255, 255, 255, 0.15);
-      color: rgba(255, 255, 255, 0.9);
-    }
-
-    .card-calendar .card-link {
-      color: #fff;
     }
 
     .calendar-badge {
@@ -295,22 +369,7 @@ TEMPLATE.innerHTML = `
 
     /* OER cards */
     .card-amb .card-content {
-      background: linear-gradient(135deg, #0ea5e9, #6366f1);
-      color: #fff;
-    }
-
-    .card-amb .card-title {
-      color: #fff;
-      margin-bottom: 8px;
-    }
-
-    .card-amb .card-type {
-      background: rgba(255, 255, 255, 0.15);
-      color: rgba(255, 255, 255, 0.9);
-    }
-
-    .card-amb .card-link {
-      color: #fff;
+      border-top: 3px solid #0ea5e9;
     }
 
     .oer-creators {
@@ -356,16 +415,16 @@ TEMPLATE.innerHTML = `
       justify-content: center;
       font-size: 11px;
       font-weight: 700;
-      color: rgba(255, 255, 255, 0.92);
-      background: rgba(255, 255, 255, 0.22);
+      color: var(--text);
+      background: var(--chip-bg);
       background-size: cover;
       background-position: center;
-      border: 1px solid rgba(255, 255, 255, 0.25);
+      border: 1px solid var(--border);
     }
 
     .oer-footer-avatar-name {
       font-size: 12px;
-      color: rgba(255, 255, 255, 0.95);
+      color: var(--muted-2);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
@@ -397,7 +456,7 @@ TEMPLATE.innerHTML = `
     }
 
     .oer-summary {
-      color: rgba(255, 255, 255, 0.92);
+      color: var(--muted);
       height: auto;
       margin-bottom: 10px;
     }
@@ -471,7 +530,7 @@ TEMPLATE.innerHTML = `
     }
 
     .event-row a {
-      color: rgba(255, 255, 255, 0.95);
+      color: var(--link);
       text-decoration: underline;
     }
 
@@ -486,14 +545,14 @@ TEMPLATE.innerHTML = `
     .loading {
       text-align: center;
       padding: 20px;
-      color: #666;
+      color: var(--muted);
       grid-column: 1 / -1;
     }
 
     .empty {
       text-align: center;
       padding: 40px;
-      color: #666;
+      color: var(--muted);
       grid-column: 1 / -1;
     }
 
@@ -515,7 +574,7 @@ TEMPLATE.innerHTML = `
     }
 
     .modal-content {
-      background: white;
+      background: var(--modal-bg);
       border-radius: 8px;
       max-width: 800px;
       max-height: 90vh;
@@ -532,7 +591,7 @@ TEMPLATE.innerHTML = `
       border: none;
       font-size: 24px;
       cursor: pointer;
-      color: #666;
+      color: var(--muted);
     }
 
     .modal-image {
@@ -548,7 +607,7 @@ TEMPLATE.innerHTML = `
     .modal-title {
       margin: 0 0 10px;
       font-size: 24px;
-      color: #333;
+      color: var(--text);
     }
 
     .modal-meta {
@@ -569,12 +628,12 @@ TEMPLATE.innerHTML = `
 
     .modal-author {
       font-size: 14px;
-      color: #666;
+      color: var(--muted);
     }
 
     .modal-description {
       line-height: 1.6;
-      color: #333;
+      color: var(--text);
       white-space: pre-wrap;
     }
 
@@ -589,7 +648,7 @@ TEMPLATE.innerHTML = `
     .person-link {
       border: none;
       background: transparent;
-      color: #7e22ce;
+      color: var(--link);
       padding: 0;
       font: inherit;
       cursor: pointer;
@@ -623,80 +682,25 @@ TEMPLATE.innerHTML = `
 
     .modal-tag {
       padding: 4px 10px;
-      background: #f3f4f6;
+      background: var(--chip-bg);
       border-radius: 16px;
       font-size: 12px;
-      color: #666;
+      color: var(--muted);
     }
 
     .modal-link {
       display: inline-block;
       margin-top: 20px;
       padding: 10px 20px;
-      background: #7e22ce;
-      color: white;
+      background: var(--link);
+      color: #ffffff;
       text-decoration: none;
       border-radius: 6px;
       font-weight: bold;
     }
 
     .modal-link:hover {
-      background: #6b21a8;
-    }
-
-    /* Dark Mode */
-    :host([theme="dark"]) .card {
-      background: #1f2937;
-      border-color: #374151;
-    }
-
-    :host([theme="dark"]) .card-title {
-      color: #f9fafb;
-    }
-
-    :host([theme="dark"]) .card-summary {
-      color: #9ca3af;
-    }
-
-    :host([theme="dark"]) .card-author {
-      color: #9ca3af;
-    }
-
-    :host([theme="dark"]) .card-type {
-      background: #374151;
-      color: #9ca3af;
-    }
-
-    :host([theme="dark"]) .search-input {
-      background: #1f2937;
-      border-color: #374151;
-      color: #f9fafb;
-    }
-
-    :host([theme="dark"]) .category-chip {
-      background: #374151;
-      color: #f9fafb;
-    }
-
-    :host([theme="dark"]) .category-chip:hover {
-      background: #4b5563;
-    }
-
-    :host([theme="dark"]) .modal-content {
-      background: #1f2937;
-    }
-
-    :host([theme="dark"]) .modal-title {
-      color: #f9fafb;
-    }
-
-    :host([theme="dark"]) .modal-description {
-      color: #e5e7eb;
-    }
-
-    :host([theme="dark"]) .modal-tag {
-      background: #374151;
-      color: #9ca3af;
+      background: var(--link-hover);
     }
   </style>
 
@@ -1407,7 +1411,7 @@ export class NostrFeedWidget extends HTMLElement {
     /* legacy card template (replaced by renderers)
     card.innerHTML = `
       <div class="card-image" style="${image ? `background-image: url('${image}')` : ''}">
-        ${!image ? 'NO IMAGE' : ''}
+        ${!image ? '' : ''}
       </div>
       <div class="card-content">
         <span class="card-type">${typeLabels[event.type] || event.type}</span>
