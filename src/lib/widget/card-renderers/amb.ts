@@ -108,7 +108,6 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
   if (aboutLabels.length > 0) metaRows.push(`<div class="oer-row"><span class="oer-label">Thema:</span> <span>${aboutLabels.slice(0, 3).join(', ')}</span></div>`);
   if (licenseUrl) metaRows.push(`<div class="oer-row"><span class="oer-label">Lizenz:</span> <a href="${licenseUrl}" target="_blank" rel="noopener noreferrer">${licenseUrl}</a></div>`);
   else if (license) metaRows.push(`<div class="oer-row"><span class="oer-label">Lizenz:</span> <span>${license}</span></div>`);
-  if (oerUrl) metaRows.push(`<div class="oer-row"><span class="oer-label">OER:</span> <a href="${oerUrl}" target="_blank" rel="noopener noreferrer">Link öffnen</a></div>`);
 
   const description = (typeof metadata?.summary === 'string' && metadata.summary) || (typeof metadata?.description === 'string' && metadata.description) || ctx.summary || '';
   const descriptionShort = description.length > 140 ? description.slice(0, 140) + '…' : description;

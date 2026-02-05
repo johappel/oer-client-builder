@@ -8,7 +8,7 @@ import type { WidgetConfig, ParsedEvent, ProfileMetadata } from '../nostr/types.
 import { NostrClient } from '../nostr/client.js';
 import { parseEvent, enrichWithProfiles, extractProfiles } from '../nostr/parser.js';
 import { applyTwoLevelFilter, createFilterConfig, extractCategories, extractAuthors } from '../nostr/filter.js';
-import { normalizePubkey, encodeNprofile } from '../nostr/nip19.js';
+import { normalizePubkey, encodeNaddr, encodeNprofile } from '../nostr/nip19.js';
 import { renderCard } from './card-renderers/index.js';
 
 const TEMPLATE = document.createElement('template');
@@ -915,6 +915,35 @@ export class NostrFeedWidget extends HTMLElement {
       if (location) {
         const normalized = this.normalizeOpenHref(location);
         if (normalized) return normalized;
+      }
+    }
+
+    if (event.type === 'amb') {
+      const dRaw = typeof metadata?.d === 'string' ? metadata.d : '';
+      if (dRaw) {
+        const normalized = this.normalizeOpenHref(dRaw);
+        if (normalized) return normalized;
+      }
+
+      const url = typeof metadata?.url === 'string' ? metadata.url : '';
+      if (url) {
+        const normalized = this.normalizeOpenHref(url);
+        if (normalized) return normalized;
+      }
+
+      const aCoord = event.event.tags.find((t) => t[0] === 'a')?.[1];
+      if (typeof aCoord === 'string' && aCoord.includes(':')) {
+        const first = aCoord.indexOf(':');
+        const second = first >= 0 ? aCoord.indexOf(':', first + 1) : -1;
+        const kindStr = first > 0 ? aCoord.slice(0, first) : '';
+        const pubkey = second > first ? aCoord.slice(first + 1, second) : '';
+        const identifier = second >= 0 ? aCoord.slice(second + 1) : '';
+        const kind = Number(kindStr);
+        if (Number.isFinite(kind) && kind > 0 && pubkey && identifier) {
+          const nostr = `nostr:${encodeNaddr(kind, pubkey, identifier)}`;
+          const normalized = this.normalizeOpenHref(nostr);
+          if (normalized) return normalized;
+        }
       }
     }
 
