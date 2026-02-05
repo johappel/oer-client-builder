@@ -50,6 +50,17 @@ function asHexPubkey(input: string): string | null {
   return null;
 }
 
+function isUrlLike(value: string): boolean {
+  const s = value.trim().toLowerCase();
+  return s.startsWith('http://') || s.startsWith('https://') || s.startsWith('urn:');
+}
+
+function truncate(value: string, maxLen: number): string {
+  const s = value.trim();
+  if (s.length <= maxLen) return s;
+  return s.slice(0, Math.max(0, maxLen - 1)).trimEnd() + '…';
+}
+
 export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
   const metadata: any = ctx.event.metadata || {};
   const tags = ctx.event.event.tags || [];
@@ -153,7 +164,18 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
 
   // Keywords nicht in der Card anzeigen (nur im Detail-Dialog)
 
-  const overlayChips = uniq([educationalLevel, resourceType, ...aboutLabels]).filter(Boolean).slice(0, 3);
+  const aboutChips = aboutLabels
+    .map((v) => v.trim())
+    .filter((v) => v.length > 0 && !isUrlLike(v))
+    .map((v) => truncate(v, 38));
+
+  const chipCandidates = [
+    educationalLevel && !isUrlLike(educationalLevel) ? educationalLevel : '',
+    resourceType && !isUrlLike(resourceType) ? resourceType : '',
+    ...aboutChips
+  ];
+
+  const overlayChips = uniq(chipCandidates).filter(Boolean).slice(0, 3);
   const overlayChipsHtml =
     overlayChips.length > 0
       ? `<div class="oer-chip-stack">${overlayChips.map((c) => `<span class="oer-chip oer-chip-overlay">${c}</span>`).join('')}</div>`
