@@ -86,8 +86,16 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
   const allCreatorPubkeys = uniq([...creatorPubkeys, ...creatorIdPubkeys]);
   const creatorNamesPlain = typeof metadata?.creator === 'string' ? metadata.creator.trim() : '';
 
-  const creatorNamesFromTags = uniq(
-    tags.filter((t) => t[0] === 'creator:name' && typeof t[1] === 'string').map((t) => String(t[1]))
+  const externalCreatorNames = uniq(
+    tags
+      .filter((t) => t[0] === 'creator:name' && typeof t[1] === 'string')
+      .map((t) => String(t[1]))
+  );
+
+  const externalPublisherNames = uniq(
+    tags
+      .filter((t) => t[0] === 'publisher:name' && typeof t[1] === 'string')
+      .map((t) => String(t[1]))
   );
 
   const creatorEntries: Array<{ key: string; name: string; picture?: string }> = [];
@@ -98,11 +106,8 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
     const name = profileName || `Unbekannt ${pk.slice(-4)}`;
     creatorEntries.push({ key: pk, name, picture });
   }
-  if (creatorEntries.length === 0) {
-    for (const n of creatorNamesFromTags.slice(0, 6)) creatorEntries.push({ key: n, name: n });
-  }
 
-  const creatorsHtml =
+  const avatarCreatorsHtml =
     creatorEntries.length > 0
       ? `
         <div class="oer-creators" aria-label="Creator">
@@ -110,9 +115,8 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
             .map(({ key, name, picture }) => {
               const initials = (name || key).slice(0, 2).toUpperCase();
               const title = name || key;
-              const pk = asHexPubkey(key);
               return `
-                <button class="oer-avatar" type="button" title="${title}" ${pk ? `data-pubkey="${pk}"` : ''}>
+                <button class="oer-avatar" type="button" title="${title}" data-pubkey="${key}">
                   <span class="oer-avatar-img" style="${picture ? `background-image: url('${picture}')` : ''}">${!picture ? initials : ''}</span>
                   <span class="oer-avatar-name">${name}</span>
                 </button>
@@ -121,9 +125,28 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
             .join('')}
         </div>
       `
-      : creatorNamesPlain
-        ? `<div class="oer-creators-text">Creator: ${creatorNamesPlain}</div>`
-        : '';
+      : '';
+
+  const externalCreatorsText = uniq([
+    ...(creatorNamesPlain ? [creatorNamesPlain] : []),
+    ...externalCreatorNames
+  ]).slice(0, 6);
+
+  const creditsPieces: string[] = [];
+  if (externalCreatorsText.length > 0) {
+    creditsPieces.push(
+      `<div class="oer-credit"><span class="oer-credit-label">Creator:</span> <span>${externalCreatorsText.join(', ')}</span></div>`
+    );
+  }
+  if (externalPublisherNames.length > 0) {
+    creditsPieces.push(
+      `<div class="oer-credit"><span class="oer-credit-label">Publisher:</span> <span>${externalPublisherNames.slice(0, 4).join(', ')}</span></div>`
+    );
+  }
+
+  const creditsHtml = creditsPieces.length > 0 ? `<div class="oer-credits">${creditsPieces.join('')}</div>` : '';
+
+  const creatorsHtml = `${avatarCreatorsHtml}${creditsHtml}`;
 
   const keywords = uniq([
     ...ctx.tags,

@@ -289,6 +289,20 @@ TEMPLATE.innerHTML = `
       flex-wrap: wrap;
     }
 
+    .oer-credits {
+      width: 100%;
+      display: grid;
+      gap: 6px;
+      font-size: 12px;
+      line-height: 1.35;
+      opacity: 0.95;
+    }
+
+    .oer-credit-label {
+      font-weight: 800;
+      margin-right: 6px;
+    }
+
     .oer-avatar {
       display: inline-flex;
       align-items: center;
@@ -689,6 +703,9 @@ export class NostrFeedWidget extends HTMLElement {
   private client: NostrClient | null = null;
   private events: ParsedEvent[] = [];
   private profiles: Map<string, ProfileMetadata> = new Map();
+  private requestedProfiles: Set<string> = new Set();
+  private pendingProfilePubkeys: Set<string> = new Set();
+  private profileFetchTimer: number | null = null;
   private config!: WidgetConfig;
   private selectedCategories: string[] = [];
   private searchQuery = '';
@@ -709,6 +726,7 @@ export class NostrFeedWidget extends HTMLElement {
     console.log('[NostrFeedWidget] parsed config:', this.config);
     this.setupEventListeners();
     this.connectToRelays();
+    this.queueProfileFetch(this.config.authors || []);
   }
 
   disconnectedCallback(): void {
@@ -832,6 +850,8 @@ export class NostrFeedWidget extends HTMLElement {
       this.profiles.set(event.pubkey, parsedEvent.metadata as ProfileMetadata);
     }
 
+    this.queueProfilesForEvent(parsedEvent);
+
     // Events mit Profilen anreichern
     const enrichedEvents = enrichWithProfiles(this.events, this.profiles);
 
@@ -841,6 +861,78 @@ export class NostrFeedWidget extends HTMLElement {
     // UI aktualisieren
     this.renderCategories(categories);
     this.renderGrid();
+  }
+
+  private queueProfilesForEvent(parsedEvent: ParsedEvent): void {
+    const pubkeys = new Set<string>();
+    const authorPk = parsedEvent?.event?.pubkey;
+    if (typeof authorPk === 'string' && /^[0-9a-f]{64}$/i.test(authorPk)) pubkeys.add(authorPk.toLowerCase());
+
+    const metadata: any = parsedEvent.metadata as any;
+    if (parsedEvent.type === 'amb') {
+      const creators = Array.isArray(metadata?.creatorPubkeys) ? metadata.creatorPubkeys : [];
+      const contributors = Array.isArray(metadata?.contributorPubkeys) ? metadata.contributorPubkeys : [];
+      [...creators, ...contributors].forEach((pk: unknown) => {
+        if (typeof pk === 'string' && /^[0-9a-f]{64}$/i.test(pk)) pubkeys.add(pk.toLowerCase());
+      });
+    }
+    if (parsedEvent.type === 'calendar') {
+      const participants = Array.isArray(metadata?.participants) ? metadata.participants : [];
+      participants.forEach((p: any) => {
+        if (p && typeof p.pubkey === 'string' && /^[0-9a-f]{64}$/i.test(p.pubkey)) pubkeys.add(p.pubkey.toLowerCase());
+      });
+    }
+
+    if (parsedEvent.type === 'profile' && typeof authorPk === 'string') {
+      pubkeys.delete(authorPk.toLowerCase());
+    }
+
+    this.queueProfileFetch(Array.from(pubkeys));
+  }
+
+  private queueProfileFetch(pubkeys: string[]): void {
+    const toAdd: string[] = [];
+    for (const pk of pubkeys) {
+      const pubkey = typeof pk === 'string' ? pk.trim().toLowerCase() : '';
+      if (!pubkey) continue;
+      if (!/^[0-9a-f]{64}$/.test(pubkey)) continue;
+      if (this.requestedProfiles.has(pubkey)) continue;
+      if (this.pendingProfilePubkeys.has(pubkey)) continue;
+      this.pendingProfilePubkeys.add(pubkey);
+      toAdd.push(pubkey);
+    }
+
+    if (toAdd.length === 0) return;
+    if (this.profileFetchTimer !== null) return;
+
+    this.profileFetchTimer = window.setTimeout(() => {
+      this.profileFetchTimer = null;
+      this.flushProfileFetch();
+    }, 150);
+  }
+
+  private flushProfileFetch(): void {
+    if (!this.client) return;
+
+    const newlyQueued = Array.from(this.pendingProfilePubkeys);
+    this.pendingProfilePubkeys.clear();
+    newlyQueued.forEach((pk) => this.requestedProfiles.add(pk));
+
+    const all = Array.from(this.requestedProfiles);
+    if (all.length === 0) return;
+
+    const chunkSize = 200;
+    const filters: any[] = [];
+    for (let i = 0; i < all.length; i += chunkSize) {
+      filters.push({ kinds: [0], authors: all.slice(i, i + chunkSize), limit: 1 });
+    }
+
+    try {
+      this.client.unsubscribe('profiles');
+    } catch {
+      // ignore
+    }
+    this.client.subscribe('profiles', filters as any);
   }
 
   private renderCategories(categories: string[]): void {
