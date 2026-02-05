@@ -342,12 +342,12 @@
       </div>
       
       <div class="form-group">
-        <label for="search">Suchbegriff</label>
+        <label for="search">Suche</label>
         <input
           type="text"
           id="search"
           bind:value={search}
-          placeholder="Suchbegriff..."
+          placeholder="Suchbegriffe... (ODER: Begriff1, Begriff2)"
         />
       </div>
       

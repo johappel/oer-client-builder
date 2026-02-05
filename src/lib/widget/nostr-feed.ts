@@ -554,6 +554,7 @@ export class NostrFeedWidget extends HTMLElement {
     console.log('[NostrFeedWidget] relays attribute:', this.getAttribute('relays'));
     // Config hier parsen, damit Attribute verfügbar sind
     this.config = this.parseConfig();
+    this.searchQuery = this.config.search || '';
     console.log('[NostrFeedWidget] parsed config:', this.config);
     this.setupEventListeners();
     this.connectToRelays();
@@ -610,7 +611,8 @@ export class NostrFeedWidget extends HTMLElement {
     if (this.config.showSearch) {
       const input = document.createElement('input');
       input.className = 'search-input';
-      input.placeholder = 'Suchen...';
+      input.placeholder = 'Suchen... (ODER: Begriff1, Begriff2)';
+      input.value = this.searchQuery;
       input.addEventListener('input', (e) => {
         this.searchQuery = (e.target as HTMLInputElement).value;
         this.renderGrid();

@@ -35,7 +35,11 @@ export function matchesFilter(event: ParsedEvent, filter: string[]): boolean {
   
   // Suchbegriff in Metadaten
   if (key === 'search') {
-    const searchTerm = values.join(' ').toLowerCase();
+    const rawSearch = values.join(' ');
+    const searchTerms = rawSearch
+      .split(',')
+      .map(t => t.trim().toLowerCase())
+      .filter(Boolean);
     const metadata = event.metadata;
     
     if (!metadata) return false;
@@ -84,7 +88,17 @@ export function matchesFilter(event: ParsedEvent, filter: string[]): boolean {
       searchableText = event.event.content || '';
     }
     
-    return searchableText.toLowerCase().includes(searchTerm);
+    const haystack = searchableText.toLowerCase();
+
+    // Mehrere Suchbegriffe kommasepariert: ODER-Suche
+    if (searchTerms.length > 1) {
+      return searchTerms.some(term => haystack.includes(term));
+    }
+
+    // Fallback: ein Begriff (bisheriges Verhalten)
+    const searchTerm = searchTerms[0] ?? rawSearch.trim().toLowerCase();
+    if (!searchTerm) return true;
+    return haystack.includes(searchTerm);
   }
   
   return false;
