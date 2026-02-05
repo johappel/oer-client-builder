@@ -715,11 +715,160 @@ TEMPLATE.innerHTML = `
     .modal-link:hover {
       background: var(--link-hover);
     }
+
+    /* Profile view */
+    .profile-header {
+      display: none;
+      margin: 0 0 18px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .profile-banner {
+      height: 170px;
+      background: var(--surface-2);
+      background-size: cover;
+      background-position: center;
+      position: relative;
+    }
+
+    .profile-back {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 2;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.85);
+      color: var(--text);
+      padding: 8px 12px;
+      border-radius: 9999px;
+      cursor: pointer;
+      font-size: 13px;
+      backdrop-filter: blur(6px);
+    }
+
+    :host([theme="dark"]) .profile-back {
+      background: rgba(17, 24, 39, 0.75);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :host([theme="auto"]) .profile-back {
+        background: rgba(17, 24, 39, 0.75);
+      }
+    }
+
+    .profile-header-card {
+      display: grid;
+      grid-template-columns: 72px 1fr;
+      gap: 14px;
+      padding: 14px 16px 16px;
+      align-items: center;
+    }
+
+    .profile-avatar-large {
+      width: 72px;
+      height: 72px;
+      border-radius: 9999px;
+      background: var(--surface-2);
+      background-size: cover;
+      background-position: center;
+      border: 4px solid var(--surface);
+      box-shadow: 0 10px 22px rgba(0, 0, 0, 0.12);
+      margin-top: -38px;
+    }
+
+    .profile-name {
+      font-size: 22px;
+      font-weight: 750;
+      color: var(--text);
+      line-height: 1.2;
+      margin: 0 0 4px;
+      word-break: break-word;
+    }
+
+    .profile-sub {
+      font-size: 12px;
+      color: var(--muted-2);
+      word-break: break-all;
+    }
+
+    .profile-about {
+      padding: 0 16px 14px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+      white-space: pre-wrap;
+    }
+
+    .profile-section-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 16px 14px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .profile-section-title {
+      margin: 0;
+      font-size: 18px;
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .profile-type-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .profile-filter-chip {
+      border: 1px solid var(--border);
+      background: var(--chip-bg);
+      color: var(--text);
+      border-radius: 9999px;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .profile-filter-chip.active {
+      background: var(--chip-active);
+      color: var(--chip-active-text);
+      border-color: transparent;
+    }
   </style>
 
   <div class="nostr-feed-container">
     <div class="search-bar" id="searchBar"></div>
     <div class="categories" id="categories"></div>
+
+    <div class="profile-header" id="profileHeader">
+      <div class="profile-banner" id="profileBanner">
+        <button class="profile-back" id="profileBack" type="button">← Zurück zur Übersicht</button>
+      </div>
+      <div class="profile-header-card">
+        <div class="profile-avatar-large" id="profileAvatarLarge"></div>
+        <div>
+          <div class="profile-name" id="profileName"></div>
+          <div class="profile-sub" id="profileSub"></div>
+        </div>
+      </div>
+      <div class="profile-about" id="profileAbout"></div>
+      <div class="profile-section-row">
+        <h3 class="profile-section-title">Veröffentlichungen & Termine</h3>
+        <div class="profile-type-filters" id="profileTypeFilters">
+          <button class="profile-filter-chip" type="button" data-filter="all">Alle</button>
+          <button class="profile-filter-chip" type="button" data-filter="calendar">Termine</button>
+          <button class="profile-filter-chip" type="button" data-filter="amb">Materialien</button>
+        </div>
+      </div>
+    </div>
+
     <div class="grid" id="grid">
       <div class="loading">Verbinde mit Nostr...</div>
     </div>
@@ -755,6 +904,8 @@ export class NostrFeedWidget extends HTMLElement {
   private config!: WidgetConfig;
   private selectedCategories: string[] = [];
   private searchQuery = '';
+  private activeProfilePubkey: string | null = null;
+  private profileTypeFilter: 'all' | 'calendar' | 'amb' = 'all';
 
   constructor() {
     super();
@@ -819,6 +970,8 @@ export class NostrFeedWidget extends HTMLElement {
 
   private setupEventListeners(): void {
     const searchInput = this.shadow.getElementById('searchBar') as HTMLElement;
+    const profileBack = this.shadow.getElementById('profileBack') as HTMLButtonElement;
+    const profileTypeFilters = this.shadow.getElementById('profileTypeFilters') as HTMLElement;
     const modal = this.shadow.getElementById('modal') as HTMLElement;
     const modalClose = this.shadow.getElementById('modalClose') as HTMLElement;
 
@@ -846,6 +999,65 @@ export class NostrFeedWidget extends HTMLElement {
       if (e.target === modal) {
         modal.classList.remove('open');
       }
+    });
+
+    profileBack.addEventListener('click', () => {
+      this.activeProfilePubkey = null;
+      this.profileTypeFilter = 'all';
+      this.renderGrid();
+    });
+
+    profileTypeFilters.querySelectorAll<HTMLButtonElement>('button[data-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const filter = (btn.getAttribute('data-filter') || 'all') as any;
+        if (filter === 'all' || filter === 'calendar' || filter === 'amb') {
+          this.profileTypeFilter = filter;
+          this.renderGrid();
+        }
+      });
+    });
+  }
+
+  private renderProfileHeader(): void {
+    const header = this.shadow.getElementById('profileHeader') as HTMLElement;
+    const banner = this.shadow.getElementById('profileBanner') as HTMLElement;
+    const avatar = this.shadow.getElementById('profileAvatarLarge') as HTMLElement;
+    const nameEl = this.shadow.getElementById('profileName') as HTMLElement;
+    const subEl = this.shadow.getElementById('profileSub') as HTMLElement;
+    const aboutEl = this.shadow.getElementById('profileAbout') as HTMLElement;
+    const searchBar = this.shadow.getElementById('searchBar') as HTMLElement;
+    const categories = this.shadow.getElementById('categories') as HTMLElement;
+    const filterWrap = this.shadow.getElementById('profileTypeFilters') as HTMLElement;
+
+    if (!this.activeProfilePubkey) {
+      header.style.display = 'none';
+      searchBar.style.display = this.config.showSearch ? '' : 'none';
+      categories.style.display = this.config.showCategories ? '' : 'none';
+      return;
+    }
+
+    const pubkey = this.activeProfilePubkey;
+    const profile = this.profiles.get(pubkey) || {};
+    const displayName = (profile.display_name || profile.name || '').trim() || 'Unbekannter Nutzer';
+    const sub = (profile.nip05 || pubkey).trim();
+
+    header.style.display = 'block';
+    searchBar.style.display = 'none';
+    categories.style.display = 'none';
+
+    banner.style.backgroundImage =
+      profile.banner && this.isSafeHttpUrl(profile.banner) ? `url('${profile.banner}')` : 'none';
+    avatar.style.backgroundImage =
+      profile.picture && this.isSafeHttpUrl(profile.picture) ? `url('${profile.picture}')` : 'none';
+
+    nameEl.textContent = displayName;
+    subEl.textContent = sub;
+    aboutEl.textContent = (profile.about || '').trim();
+    aboutEl.style.display = aboutEl.textContent ? 'block' : 'none';
+
+    filterWrap.querySelectorAll<HTMLButtonElement>('button[data-filter]').forEach((btn) => {
+      const key = btn.getAttribute('data-filter') || 'all';
+      btn.classList.toggle('active', key === this.profileTypeFilter);
     });
   }
 
@@ -1011,25 +1223,37 @@ export class NostrFeedWidget extends HTMLElement {
 
   private renderGrid(): void {
     const grid = this.shadow.getElementById('grid') as HTMLElement;
+    this.renderProfileHeader();
 
     if (this.events.length === 0) {
       grid.innerHTML = '<div class="loading">Verbinde mit Nostr...</div>';
       return;
     }
 
+    const selectedAuthors = this.activeProfilePubkey ? [this.activeProfilePubkey] : this.config.authors;
+    const searchQuery = this.activeProfilePubkey ? '' : this.searchQuery;
+    const selectedCategories = this.activeProfilePubkey ? [] : this.selectedCategories;
+
     // Filter anwenden
     const filterConfig = createFilterConfig(
       this.config.tags,
       [],
-      this.searchQuery,
-      this.selectedCategories,
-      this.config.authors
+      searchQuery,
+      selectedCategories,
+      selectedAuthors
     );
 
-    const filteredEvents = applyTwoLevelFilter(
+    let filteredEvents = applyTwoLevelFilter(
       enrichWithProfiles(this.events, this.profiles),
       filterConfig
     );
+
+    if (this.activeProfilePubkey) {
+      filteredEvents = filteredEvents.filter((e) => e.type !== 'profile');
+      if (this.profileTypeFilter !== 'all') {
+        filteredEvents = filteredEvents.filter((e) => e.type === this.profileTypeFilter);
+      }
+    }
 
     const displayEvents = filteredEvents.filter((event) => {
       if (event.type !== 'calendar') return true;
@@ -1304,7 +1528,7 @@ export class NostrFeedWidget extends HTMLElement {
     container.appendChild(row);
   }
 
-  private openProfile(pubkey: string): void {
+  private openProfileModal(pubkey: string): void {
     const modal = this.shadow.getElementById('modal') as HTMLElement;
     const modalImage = this.shadow.getElementById('modalImage') as HTMLElement;
     const modalTitle = this.shadow.getElementById('modalTitle') as HTMLElement;
@@ -1369,6 +1593,15 @@ export class NostrFeedWidget extends HTMLElement {
     modalLink.style.display = 'inline-block';
 
     modal.classList.add('open');
+  }
+
+  private openProfile(pubkey: string): void {
+    const normalized = normalizePubkey(pubkey) || pubkey;
+    this.activeProfilePubkey = normalized;
+    this.profileTypeFilter = 'all';
+    this.queueProfileFetch([normalized]);
+    (this.shadow.getElementById('modal') as HTMLElement).classList.remove('open');
+    this.renderGrid();
   }
 
   private createCard(event: ParsedEvent): HTMLElement {
