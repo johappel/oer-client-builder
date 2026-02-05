@@ -177,6 +177,27 @@ TEMPLATE.innerHTML = `
       align-self: flex-start;
     }
 
+    .card-footer {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .card-footer .card-meta {
+      margin-bottom: 0;
+    }
+
+    .card-footer .card-link {
+      margin-top: 0;
+      align-self: auto;
+    }
+
+    .card-footer-spacer {
+      flex: 1 1 auto;
+    }
+
     /* Calendar cards */
     .card-calendar .card-content {
       background: linear-gradient(135deg, #f97316, #ec4899);
@@ -342,13 +363,19 @@ TEMPLATE.innerHTML = `
       border: 1px solid rgba(255, 255, 255, 0.25);
     }
 
-    .oer-avatar-name {
+    .oer-footer-avatar-name {
       font-size: 12px;
       color: rgba(255, 255, 255, 0.95);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
       max-width: 180px;
+    }
+
+    .oer-footer-avatar .oer-avatar-img {
+      width: 22px;
+      height: 22px;
+      font-size: 10px;
     }
 
     .oer-creators-text {
@@ -737,7 +764,7 @@ export class NostrFeedWidget extends HTMLElement {
 
   private parseConfig(): WidgetConfig {
     const relays = this.getAttribute('relays')?.split(',').map(r => r.trim()) || [];
-    const kinds = (this.getAttribute('kinds')?.split(',').map(k => parseInt(k.trim(), 10)) || [30142, 31922, 1, 30023, 0]) as any;
+    const kinds = (this.getAttribute('kinds')?.split(',').map(k => parseInt(k.trim(), 10)) || [30142, 31922, 31923, 1, 30023, 0]) as any;
     const rawAuthors = this.getAttribute('authors')?.split(',').map(a => a.trim()).filter(Boolean) || [];
     const authors = rawAuthors
       .map((a) => normalizePubkey(a))
@@ -1334,7 +1361,8 @@ export class NostrFeedWidget extends HTMLElement {
     const metadata = event.metadata as any;
     const author = event.author;
     const authorPicture = author?.picture && this.isSafeHttpUrl(author.picture) ? author.picture : '';
-    const authorName = author ? author.name || author.display_name || null : null;
+    const authorNameRaw = author ? (author.name || author.display_name || '').trim() : '';
+    const authorName = authorNameRaw || `Unbekannt ${event.event.pubkey.slice(-4)}`;
 
     const title = metadata?.title || metadata?.name || 'Unbenannt';
     const summary = metadata?.summary || metadata?.description || event.event.content?.slice(0, 100) || '';

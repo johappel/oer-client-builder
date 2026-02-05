@@ -21,7 +21,7 @@
     authors: '',
     tags: '[]',
     search: '',
-    kinds: '30142,31922,1,30023,0',
+    kinds: '30142,31922,31923,1,30023,0',
     maxItems: '50',
     showSearch: true,
     showCategories: true,

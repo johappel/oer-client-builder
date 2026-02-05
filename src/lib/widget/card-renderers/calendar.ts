@@ -191,7 +191,7 @@ export function renderCalendarCard(ctx: CardRenderContext): RenderedCard {
     : '';
 
   const authorHtml =
-    ctx.config.showAuthor && ctx.author
+    ctx.config.showAuthor && (ctx.authorName || ctx.authorPicture)
       ? `
           <div class="card-meta">
             <div class="card-avatar" style="${ctx.authorPicture ? `background-image: url('${ctx.authorPicture}')` : ''}"></div>
@@ -199,6 +199,8 @@ export function renderCalendarCard(ctx: CardRenderContext): RenderedCard {
           </div>
         `
       : '';
+
+  const footerLeftHtml = authorHtml || '<span class="card-footer-spacer"></span>';
 
   const description = metadata?.summary || metadata?.description || metadata?.content || ctx.event.event.content || '';
 
@@ -217,8 +219,10 @@ export function renderCalendarCard(ctx: CardRenderContext): RenderedCard {
           ${locationRow}
         </div>
         <p class="card-summary">${description.length > 160 ? description.slice(0, 160) + '…' : description}</p>
-        ${authorHtml}
-        <a class="card-link" href="${ctx.href || '#'}" target="_blank">Öffnen →</a>
+        <div class="card-footer">
+          ${footerLeftHtml}
+          <a class="card-link" href="${ctx.href || '#'}" target="_blank">Öffnen →</a>
+        </div>
       </div>
     `
   };

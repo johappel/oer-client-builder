@@ -117,25 +117,22 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
     creatorEntries.push({ key: pk, name, picture });
   }
 
-  const avatarCreatorsHtml =
-    creatorEntries.length > 0
-      ? `
-        <div class="oer-creators" aria-label="Creator">
-          ${creatorEntries
-            .map(({ key, name, picture }) => {
-              const initials = (name || key).slice(0, 2).toUpperCase();
-              const title = name || key;
-              return `
-                <button class="oer-avatar" type="button" title="${title}" data-pubkey="${key}">
-                  <span class="oer-avatar-img" style="${picture ? `background-image: url('${picture}')` : ''}">${!picture ? initials : ''}</span>
-                  <span class="oer-avatar-name">${name}</span>
-                </button>
-              `;
-            })
-            .join('')}
-        </div>
-      `
-      : '';
+  const firstCreator = creatorEntries[0];
+  const footerAvatarHtml = firstCreator
+    ? (() => {
+        const { key, name, picture } = firstCreator;
+        const initials = (name || key).slice(0, 2).toUpperCase();
+        const title = name || key;
+        return `
+          <button class="oer-footer-avatar oer-avatar" type="button" title="${title}" data-pubkey="${key}">
+            <span class="oer-avatar-img" style="${picture ? `background-image: url('${picture}')` : ''}">${!picture ? initials : ''}</span>
+            <span class="oer-footer-avatar-name">${truncate(name, 18)}</span>
+          </button>
+        `;
+      })()
+    : '';
+
+  const footerLeftHtml = footerAvatarHtml || '<span class="card-footer-spacer"></span>';
 
   const normalizeName = (value: string) => value.trim().toLowerCase();
   const avatarCreatorNameSet = new Set<string>(creatorEntries.map((c) => normalizeName(c.name)));
@@ -160,7 +157,7 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
 
   const creditsHtml = creditsPieces.length > 0 ? `<div class="oer-credits">${creditsPieces.join('')}</div>` : '';
 
-  const creatorsHtml = `${avatarCreatorsHtml}${creditsHtml}`;
+  const creatorsHtml = creditsHtml;
 
   // Keywords nicht in der Card anzeigen (nur im Detail-Dialog)
 
@@ -212,7 +209,10 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
         ${creatorsHtml}
         ${keywordsHtml}
         
-        <a class="card-link" href="${ctx.href || '#'}" target="_blank">Öffnen →</a>
+        <div class="card-footer">
+          ${footerLeftHtml}
+          <a class="card-link" href="${ctx.href || '#'}" target="_blank">Öffnen →</a>
+        </div>
       </div>
     `
   };
