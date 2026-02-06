@@ -31,7 +31,7 @@
 
   type BuilderTab = 'general' | 'filters' | 'design';
 
-  const STORAGE_KEY = 'oer-client-builder:widget-builder-form:v2';
+  const STORAGE_KEY = 'oer-client-builder:widget-builder-form:v3';
   const GENERATED_CODE_STORAGE_KEY = 'oer-client-builder:widget-builder-generated-code:v1';
   const TAG_KEY_SUGGESTIONS: string[] = [
     '#creator:id',
@@ -111,21 +111,21 @@
     rawTags: '[]',
     creatorIds: '',
     creatorNames: '',
-    creatorIncludePerson: true,
+    creatorIncludePerson: false,
     creatorIncludeOrganization: false,
     publisherIds: '',
     publisherNames: '',
-    publisherIncludeOrganization: true,
+    publisherIncludeOrganization: false,
     search: '',
-    kinds: '30142,31922,31923,1,30023,0',
+    kinds: '30142,31922,31923',
     maxItems: '50',
     showSearch: true,
-    showCategories: true,
+    showCategories: false,
     showAuthor: true,
     showOverlayChips: true,
     showKeywords: true,
     showLoadMore: true,
-    pageSize: '24',
+    pageSize: '4',
     loadMoreStep: '',
     accentColor: '#7e22ce',
     cardMinWidth: '280',
@@ -1059,7 +1059,7 @@
       applyStoredFormState(stored);
     }
     isClient = true;
-    // Dynamisch importieren fÃ¼r Browser-only
+    // Dynamisch importieren für Browser-only
     const module = await import('../widget/nostr-feed.js');
     NostrFeedWidget = module.NostrFeedWidget;
     console.log('[WidgetBuilder] NostrFeedWidget loaded');
@@ -1501,7 +1501,7 @@
             Auto (500ms)
           </label>
           <button class="reset-button" onclick={resetForm}>
-            ZurÃ¼cksetzen
+            Zurücksetzen
           </button>
         </div>
       </div>

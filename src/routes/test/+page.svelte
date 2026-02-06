@@ -23,8 +23,9 @@
 <script type="module" src="${resolveEmbedScriptUrl(origin)}"><\/script>
 <nostr-feed
   relays="wss://relay.edufeed.org,wss://relay-rpi.edufeed.org,wss://amb-relay.edufeed.org"
-  kinds="30142,31922,31923,1,30023"
-  pageSize="12"
+  kinds="30142,31922,31923"
+  pageSize="4"
+  showCategories="false"
 ></nostr-feed>`;
   }
 

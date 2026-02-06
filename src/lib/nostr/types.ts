@@ -99,7 +99,7 @@ export interface AMBMetadata {
   version?: string;
   isBasedOn?: string;
   
-  // ZusÃ¤tzliche Metadaten
+  // Zusätzliche Metadaten
   [key: string]: any;
 }
 
@@ -228,7 +228,7 @@ export interface WidgetConfig {
  */
 export interface FilterConfig {
   instituteFilters: string[][]; // Vordefinierte Filter (fix)
-  userFilters: string[][];       // ZusÃ¤tzliche Filter (optional)
+  userFilters: string[][];       // Zusätzliche Filter (optional)
   searchQuery?: string;
   selectedCategories?: string[];
   selectedAuthors?: string[];
