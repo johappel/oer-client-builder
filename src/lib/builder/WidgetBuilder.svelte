@@ -28,6 +28,12 @@
 
   const STORAGE_KEY = 'oer-client-builder:widget-builder-form:v2';
   const TAG_KEY_SUGGESTIONS: string[] = [
+    '#creator:id',
+    '#creator:name',
+    '#creator:type',
+    '#publisher:id',
+    '#publisher:name',
+    '#publisher:type',
     '#about:id',
     '#audience:id',
     '#educationalLevel:id',
@@ -68,6 +74,13 @@
     relays: string;
     authors: string;
     rawTags: string;
+    creatorIds: string;
+    creatorNames: string;
+    creatorIncludePerson: boolean;
+    creatorIncludeOrganization: boolean;
+    publisherIds: string;
+    publisherNames: string;
+    publisherIncludeOrganization: boolean;
     search: string;
     kinds: string;
     maxItems: string;
@@ -82,6 +95,13 @@
     relays: 'wss://relay.edufeed.org,wss://relay-rpi.edufeed.org,wss://amb-relay.edufeed.org',
     authors: '',
     rawTags: '[]',
+    creatorIds: '',
+    creatorNames: '',
+    creatorIncludePerson: true,
+    creatorIncludeOrganization: false,
+    publisherIds: '',
+    publisherNames: '',
+    publisherIncludeOrganization: true,
     search: '',
     kinds: '30142,31922,31923,1,30023,0',
     maxItems: '50',
@@ -281,6 +301,61 @@
     return Array.from(grouped.entries()).map(([key, values]) => [key, ...Array.from(values)]);
   }
 
+  function buildCreatorTagFilters(): string[][] {
+    const filters: string[][] = [];
+
+    const creatorIdsValues = creatorIds
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (creatorIdsValues.length > 0) {
+      filters.push(['#creator:id', ...Array.from(new Set(creatorIdsValues))]);
+    }
+
+    const creatorNamesValues = creatorNames
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (creatorNamesValues.length > 0) {
+      filters.push(['#creator:name', ...Array.from(new Set(creatorNamesValues))]);
+    }
+
+    const creatorTypeValues: string[] = [];
+    if (creatorIncludePerson) creatorTypeValues.push('Person');
+    if (creatorIncludeOrganization) creatorTypeValues.push('Organization');
+    if (creatorTypeValues.length > 0) {
+      filters.push(['#creator:type', ...creatorTypeValues]);
+    }
+
+    return filters;
+  }
+
+  function buildPublisherTagFilters(): string[][] {
+    const filters: string[][] = [];
+
+    const publisherIdsValues = publisherIds
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (publisherIdsValues.length > 0) {
+      filters.push(['#publisher:id', ...Array.from(new Set(publisherIdsValues))]);
+    }
+
+    const publisherNamesValues = publisherNames
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (publisherNamesValues.length > 0) {
+      filters.push(['#publisher:name', ...Array.from(new Set(publisherNamesValues))]);
+    }
+
+    if (publisherIncludeOrganization) {
+      filters.push(['#publisher:type', 'Organization']);
+    }
+
+    return filters;
+  }
+
   function mergeTagFilters(groups: string[][][]): string[][] {
     const grouped = new Map<string, Set<string>>();
     groups.flat().forEach((entry) => {
@@ -297,8 +372,10 @@
     const raw = parseRawTagFilters(rawTags);
     const vocabulary = buildVocabularyTagFilters(vocabularySources);
     const manual = buildManualTagFilters(manualTagRows);
+    const creator = buildCreatorTagFilters();
+    const publisher = buildPublisherTagFilters();
     return {
-      filters: mergeTagFilters([raw.filters, vocabulary, manual]),
+      filters: mergeTagFilters([raw.filters, vocabulary, manual, creator, publisher]),
       error: raw.error
     };
   }
@@ -307,6 +384,13 @@
   let relays = $state(DEFAULT_FORM_STATE.relays);
   let authors = $state(DEFAULT_FORM_STATE.authors);
   let rawTags = $state(DEFAULT_FORM_STATE.rawTags);
+  let creatorIds = $state(DEFAULT_FORM_STATE.creatorIds);
+  let creatorNames = $state(DEFAULT_FORM_STATE.creatorNames);
+  let creatorIncludePerson = $state(DEFAULT_FORM_STATE.creatorIncludePerson);
+  let creatorIncludeOrganization = $state(DEFAULT_FORM_STATE.creatorIncludeOrganization);
+  let publisherIds = $state(DEFAULT_FORM_STATE.publisherIds);
+  let publisherNames = $state(DEFAULT_FORM_STATE.publisherNames);
+  let publisherIncludeOrganization = $state(DEFAULT_FORM_STATE.publisherIncludeOrganization);
   let search = $state(DEFAULT_FORM_STATE.search);
   let kinds = $state(DEFAULT_FORM_STATE.kinds);
   let maxItems = $state(DEFAULT_FORM_STATE.maxItems);
@@ -367,6 +451,13 @@
     authors?: string;
     tags?: string; // legacy
     rawTags?: string;
+    creatorIds?: string;
+    creatorNames?: string;
+    creatorIncludePerson?: boolean;
+    creatorIncludeOrganization?: boolean;
+    publisherIds?: string;
+    publisherNames?: string;
+    publisherIncludeOrganization?: boolean;
     search?: string;
     kinds?: string;
     maxItems?: string;
@@ -409,6 +500,13 @@
     if (typeof stored.authors === 'string') authors = stored.authors;
     if (typeof stored.rawTags === 'string') rawTags = stored.rawTags;
     else if (typeof stored.tags === 'string') rawTags = stored.tags;
+    if (typeof stored.creatorIds === 'string') creatorIds = stored.creatorIds;
+    if (typeof stored.creatorNames === 'string') creatorNames = stored.creatorNames;
+    if (typeof stored.creatorIncludePerson === 'boolean') creatorIncludePerson = stored.creatorIncludePerson;
+    if (typeof stored.creatorIncludeOrganization === 'boolean') creatorIncludeOrganization = stored.creatorIncludeOrganization;
+    if (typeof stored.publisherIds === 'string') publisherIds = stored.publisherIds;
+    if (typeof stored.publisherNames === 'string') publisherNames = stored.publisherNames;
+    if (typeof stored.publisherIncludeOrganization === 'boolean') publisherIncludeOrganization = stored.publisherIncludeOrganization;
     if (typeof stored.search === 'string') search = stored.search;
     if (typeof stored.kinds === 'string') kinds = stored.kinds;
     if (typeof stored.maxItems === 'string') maxItems = stored.maxItems;
@@ -450,6 +548,13 @@
     relays = DEFAULT_FORM_STATE.relays;
     authors = DEFAULT_FORM_STATE.authors;
     rawTags = DEFAULT_FORM_STATE.rawTags;
+    creatorIds = DEFAULT_FORM_STATE.creatorIds;
+    creatorNames = DEFAULT_FORM_STATE.creatorNames;
+    creatorIncludePerson = DEFAULT_FORM_STATE.creatorIncludePerson;
+    creatorIncludeOrganization = DEFAULT_FORM_STATE.creatorIncludeOrganization;
+    publisherIds = DEFAULT_FORM_STATE.publisherIds;
+    publisherNames = DEFAULT_FORM_STATE.publisherNames;
+    publisherIncludeOrganization = DEFAULT_FORM_STATE.publisherIncludeOrganization;
     search = DEFAULT_FORM_STATE.search;
     kinds = DEFAULT_FORM_STATE.kinds;
     maxItems = DEFAULT_FORM_STATE.maxItems;
@@ -640,6 +745,13 @@
       relays,
       authors,
       rawTags,
+      creatorIds,
+      creatorNames,
+      creatorIncludePerson,
+      creatorIncludeOrganization,
+      publisherIds,
+      publisherNames,
+      publisherIncludeOrganization,
       search,
       kinds,
       maxItems,
@@ -833,6 +945,86 @@
       </details>
 
       <details class="accordion-item">
+        <summary>Creator Filter (Person/Organisation)</summary>
+        <div class="accordion-content">
+          <p class="hint">
+            Erzeugt AMB-Tagfilter `#creator:type`, `#creator:name` und `#creator:id` (kommasepariert als ODER).
+          </p>
+
+          <div class="creator-type-grid">
+            <label class="creator-type-option">
+              <input type="checkbox" bind:checked={creatorIncludePerson} />
+              Person
+            </label>
+            <label class="creator-type-option">
+              <input type="checkbox" bind:checked={creatorIncludeOrganization} />
+              Organization
+            </label>
+          </div>
+
+          <div class="form-group tight">
+            <label for="creatorNames">Creator Name(n) (optional)</label>
+            <input
+              type="text"
+              id="creatorNames"
+              bind:value={creatorNames}
+              placeholder="Max Mustermann, Universitaet XY"
+            />
+          </div>
+
+          <div class="form-group tight">
+            <label for="creatorIds">Creator ID/URL(s) (optional)</label>
+            <input
+              type="text"
+              id="creatorIds"
+              bind:value={creatorIds}
+              placeholder="https://orcid.org/..., https://d-nb.info/gnd/..."
+            />
+          </div>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>Publisher Filter (Organisation)</summary>
+        <div class="accordion-content">
+          <p class="hint">
+            Erzeugt AMB-Tagfilter `#publisher:type`, `#publisher:name` und `#publisher:id` (kommasepariert als ODER).
+          </p>
+
+          <div class="publisher-type-grid">
+            <label class="publisher-type-option">
+              <input type="checkbox" bind:checked={publisherIncludeOrganization} />
+              Organization
+            </label>
+          </div>
+
+          <div class="form-group tight">
+            <label for="publisherNames">Publisher Name(n) (optional)</label>
+            <input
+              type="text"
+              id="publisherNames"
+              bind:value={publisherNames}
+              placeholder="Universitaet XY, Zentrale OER-Stelle"
+            />
+          </div>
+
+          <div class="form-group tight">
+            <label for="publisherIds">Publisher ID/URL(s) (optional)</label>
+            <input
+              type="text"
+              id="publisherIds"
+              bind:value={publisherIds}
+              placeholder="https://example.org/publisher/xyz, https://orcid.org/..."
+            />
+          </div>
+
+          <small>
+            `publisher:type` wird auf `Organization` gesetzt, wenn aktiviert.
+          </small>
+        </div>
+      </details>
+
+      <details class="accordion-item">
         <summary>Calendar Zeitbereich</summary>
         <div class="accordion-content">
           <div class="calendar-range-grid">
@@ -1009,6 +1201,10 @@
   .form-group {
     margin-bottom: 20px;
   }
+
+  .form-group.tight {
+    margin-bottom: 0;
+  }
   
   .form-group label {
     display: block;
@@ -1133,6 +1329,42 @@
     grid-template-columns: 190px 1fr auto;
     gap: 8px;
     align-items: center;
+  }
+
+  .creator-type-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .creator-type-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: #1f2937;
+  }
+
+  .creator-type-option input {
+    width: auto;
+  }
+
+  .publisher-type-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+
+  .publisher-type-option {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-weight: 500;
+    color: #1f2937;
+  }
+
+  .publisher-type-option input {
+    width: auto;
   }
 
   .calendar-range-grid {
