@@ -849,7 +849,7 @@ TEMPLATE.innerHTML = `
 
     <div class="profile-header" id="profileHeader">
       <div class="profile-banner" id="profileBanner">
-        <button class="profile-back" id="profileBack" type="button">← Zurück zur Übersicht</button>
+        <button class="profile-back" id="profileBack" type="button">â† ZurÃ¼ck zur Ãœbersicht</button>
       </div>
       <div class="profile-header-card">
         <div class="profile-avatar-large" id="profileAvatarLarge"></div>
@@ -860,7 +860,7 @@ TEMPLATE.innerHTML = `
       </div>
       <div class="profile-about" id="profileAbout"></div>
       <div class="profile-section-row">
-        <h3 class="profile-section-title">Veröffentlichungen & Termine</h3>
+        <h3 class="profile-section-title">VerÃ¶ffentlichungen & Termine</h3>
         <div class="profile-type-filters" id="profileTypeFilters">
           <button class="profile-filter-chip" type="button" data-filter="all">Alle</button>
           <button class="profile-filter-chip" type="button" data-filter="calendar">Termine</button>
@@ -885,7 +885,7 @@ TEMPLATE.innerHTML = `
       </div>
       <div class="modal-description" id="modalDescription"></div>
       <div class="modal-tags" id="modalTags"></div>
-      <a class="modal-link" id="modalLink" target="_blank">Öffnen</a>
+      <a class="modal-link" id="modalLink" target="_blank">Ã–ffnen</a>
     </div>
   </div>
 `;
@@ -911,13 +911,13 @@ export class NostrFeedWidget extends HTMLElement {
     super();
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.appendChild(TEMPLATE.content.cloneNode(true));
-    // Config wird im connectedCallback geparst, damit Attribute verfügbar sind
+    // Config wird im connectedCallback geparst, damit Attribute verfÃ¼gbar sind
   }
 
   connectedCallback(): void {
     console.log('[NostrFeedWidget] connectedCallback called');
     console.log('[NostrFeedWidget] relays attribute:', this.getAttribute('relays'));
-    // Config hier parsen, damit Attribute verfügbar sind
+    // Config hier parsen, damit Attribute verfÃ¼gbar sind
     this.config = this.parseConfig();
     this.searchQuery = this.config.search || '';
     console.log('[NostrFeedWidget] parsed config:', this.config);
@@ -951,12 +951,16 @@ export class NostrFeedWidget extends HTMLElement {
     const showAuthor = this.getAttribute('showAuthor') !== 'false';
     const theme = (this.getAttribute('theme') as 'light' | 'dark' | 'auto') || 'auto';
     const language = this.getAttribute('language') || 'de';
+    const calendarStartDate = this.getAttribute('calendarStartDate')?.trim() || '';
+    const calendarEndDate = this.getAttribute('calendarEndDate')?.trim() || '';
 
     return {
       relays,
       kinds,
       authors,
       tags,
+      calendarStartDate: calendarStartDate || undefined,
+      calendarEndDate: calendarEndDate || undefined,
       search,
       categories,
       maxItems,
@@ -990,7 +994,7 @@ export class NostrFeedWidget extends HTMLElement {
       searchInput.style.display = 'none';
     }
 
-    // Modal schließen
+    // Modal schlieÃŸen
     modalClose.addEventListener('click', () => {
       modal.classList.remove('open');
     });
@@ -1093,10 +1097,66 @@ export class NostrFeedWidget extends HTMLElement {
     }
 
     if (this.config.tags.length > 0) {
-      filters[0]['#t'] = this.config.tags.map(t => t[1]);
+      const relayTagFilters: Record<string, string[]> = {};
+      this.config.tags.forEach((tagFilter) => {
+        if (!Array.isArray(tagFilter) || tagFilter.length < 2) return;
+        const [rawKey, ...rawValues] = tagFilter;
+        if (typeof rawKey !== 'string') return;
+        const key = rawKey.trim();
+        if (!key.startsWith('#')) return;
+        const values = rawValues
+          .map((value) => (typeof value === 'string' ? value.trim() : String(value).trim()))
+          .filter(Boolean);
+        if (values.length === 0) return;
+        if (!relayTagFilters[key]) relayTagFilters[key] = [];
+        relayTagFilters[key].push(...values);
+      });
+
+      Object.entries(relayTagFilters).forEach(([key, values]) => {
+        filters[0][key] = Array.from(new Set(values));
+      });
     }
 
     return filters;
+  }
+
+  private parseDateStartMs(dateValue?: string): number | null {
+    const value = (dateValue || '').trim();
+    if (!value) return null;
+    const parsed = new Date(`${value}T00:00:00`);
+    if (!Number.isFinite(parsed.getTime())) return null;
+    return parsed.getTime();
+  }
+
+  private parseDateEndMs(dateValue?: string): number | null {
+    const value = (dateValue || '').trim();
+    if (!value) return null;
+    const parsed = new Date(`${value}T23:59:59.999`);
+    if (!Number.isFinite(parsed.getTime())) return null;
+    return parsed.getTime();
+  }
+
+  private calendarEventStartMs(event: ParsedEvent): number | null {
+    if (event.type !== 'calendar') return null;
+    const metadata = event.metadata as any;
+    const start = metadata?.start;
+
+    if (typeof start === 'number' && Number.isFinite(start)) {
+      return start * 1000;
+    }
+
+    if (typeof start === 'string') {
+      const trimmed = start.trim();
+      if (!trimmed) return null;
+      if (/^[0-9]+$/.test(trimmed)) {
+        return Number(trimmed) * 1000;
+      }
+      const parsed = new Date(`${trimmed}T00:00:00`);
+      if (!Number.isFinite(parsed.getTime())) return null;
+      return parsed.getTime();
+    }
+
+    return null;
   }
 
   private handleEvent(event: any): void {
@@ -1255,6 +1315,20 @@ export class NostrFeedWidget extends HTMLElement {
       }
     }
 
+    const calendarStartMs = this.parseDateStartMs(this.config.calendarStartDate);
+    const calendarEndMs = this.parseDateEndMs(this.config.calendarEndDate);
+
+    if (calendarStartMs !== null || calendarEndMs !== null) {
+      filteredEvents = filteredEvents.filter((event) => {
+        if (event.type !== 'calendar') return true;
+        const startMs = this.calendarEventStartMs(event);
+        if (startMs === null) return false;
+        if (calendarStartMs !== null && startMs < calendarStartMs) return false;
+        if (calendarEndMs !== null && startMs > calendarEndMs) return false;
+        return true;
+      });
+    }
+
     const displayEvents = filteredEvents.filter((event) => {
       if (event.type !== 'calendar') return true;
       const metadata = event.metadata as any;
@@ -1378,7 +1452,7 @@ export class NostrFeedWidget extends HTMLElement {
         if (normalized) return normalized;
       }
 
-      // Kanban-Boards: d-Tag ist ein Identifier (nostr:kanban:board-...), "Öffnen" soll direkt zur Board-App gehen.
+      // Kanban-Boards: d-Tag ist ein Identifier (nostr:kanban:board-...), "Ã–ffnen" soll direkt zur Board-App gehen.
       if (typeof dRaw === 'string' && dRaw.startsWith('nostr:kanban:board-')) {
         const kanbanRef = (event.event.tags || [])
           .filter((t) => t[0] === 'a' && typeof t[1] === 'string')
@@ -1441,7 +1515,7 @@ export class NostrFeedWidget extends HTMLElement {
         if (endUnix) {
           const endFmt = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', ...(endTz ? { timeZone: endTz } : {}) });
           const endStr = endFmt.format(new Date(endUnix * 1000));
-          return startStr === endStr ? startStr : `${startStr} – ${endStr}`;
+          return startStr === endStr ? startStr : `${startStr} â€“ ${endStr}`;
         }
         return startStr;
       }
@@ -1457,7 +1531,7 @@ export class NostrFeedWidget extends HTMLElement {
           const endStr = Number.isFinite(endDate.getTime())
             ? new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(endDate)
             : end;
-          return startStr === endStr ? startStr : `${startStr} – ${endStr}`;
+          return startStr === endStr ? startStr : `${startStr} â€“ ${endStr}`;
         }
 
         return startStr;
@@ -1479,13 +1553,13 @@ export class NostrFeedWidget extends HTMLElement {
           timeStyle: 'short',
           ...(endTz ? { timeZone: endTz } : {})
         });
-        return `${startStr} – ${endFmt.format(new Date(end * 1000))}`;
+        return `${startStr} â€“ ${endFmt.format(new Date(end * 1000))}`;
       }
       return startStr;
     }
 
     if (typeof start === 'string') {
-      if (typeof end === 'string' && end) return `${start} – ${end}`;
+      if (typeof end === 'string' && end) return `${start} â€“ ${end}`;
       return start;
     }
 
@@ -1539,7 +1613,7 @@ export class NostrFeedWidget extends HTMLElement {
     const modalLink = this.shadow.getElementById('modalLink') as HTMLAnchorElement;
 
     const profile = this.profiles.get(pubkey) || {};
-    const title = profile.display_name || profile.name || pubkey.slice(0, 8) + '…' + pubkey.slice(-4);
+    const title = profile.display_name || profile.name || pubkey.slice(0, 8) + 'â€¦' + pubkey.slice(-4);
 
     modalImage.style.backgroundImage = profile.banner && this.isSafeHttpUrl(profile.banner) ? `url('${profile.banner}')` : 'none';
     modalTitle.textContent = title;
@@ -1669,7 +1743,7 @@ export class NostrFeedWidget extends HTMLElement {
             <span class="card-author">${authorName || 'Unbekannt'}</span>
           </div>
         ` : ''}
-        <a class="card-link" href="${url || '#'}" target="_blank">Öffnen &rarr;</a>
+        <a class="card-link" href="${url || '#'}" target="_blank">Ã–ffnen &rarr;</a>
       </div>
     `;
     */
@@ -1741,15 +1815,15 @@ export class NostrFeedWidget extends HTMLElement {
       const location = typeof metadata?.location === 'string' ? metadata.location : '';
       const locationUrl = location && this.isSafeHttpUrl(location) ? location : '';
       if (!locationUrl && location) extraLines.push(`Ort: ${location}`);
-      if (metadata?.start === undefined) extraLines.push('Hinweis: start fehlt (Event ist unvollständig).');
+      if (metadata?.start === undefined) extraLines.push('Hinweis: start fehlt (Event ist unvollstÃ¤ndig).');
     }
     if (event.type === 'article') {
       if (metadata?.publishedAt) {
-        extraLines.push(`Veröffentlicht: ${new Date(Number(metadata.publishedAt) * 1000).toLocaleString('de-DE')}`);
+        extraLines.push(`VerÃ¶ffentlicht: ${new Date(Number(metadata.publishedAt) * 1000).toLocaleString('de-DE')}`);
       }
     }
-    // AMB/OER (Kind 30142) Zusatzinfos werden als strukturierte KV-Zeilen unten angehängt,
-    // damit Links (Lizenz, OER, Referenzen) klickbar sind und nicht doppelt im Fließtext landen.
+    // AMB/OER (Kind 30142) Zusatzinfos werden als strukturierte KV-Zeilen unten angehÃ¤ngt,
+    // damit Links (Lizenz, OER, Referenzen) klickbar sind und nicht doppelt im FlieÃŸtext landen.
 
     const baseText = metadata?.summary || metadata?.description || metadata?.content || event.event.content || '';
     const description = extraLines.length > 0 ? [...extraLines, '', String(baseText)].join('\n') : String(baseText);
@@ -1907,7 +1981,7 @@ export class NostrFeedWidget extends HTMLElement {
     if (event.type === 'amb') {
       const addPersonTag = (role: string, pubkey: string) => {
         const prof = this.profiles.get(pubkey);
-        const name = prof?.name || prof?.display_name || pubkey.slice(0, 8) + '…' + pubkey.slice(-4);
+        const name = prof?.name || prof?.display_name || pubkey.slice(0, 8) + 'â€¦' + pubkey.slice(-4);
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'modal-tag';

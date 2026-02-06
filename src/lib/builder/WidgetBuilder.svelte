@@ -3,11 +3,71 @@
   import type { WidgetConfig } from '../nostr/types.js';
   import type { NostrFeedWidget as NostrFeedWidgetType } from '../widget/nostr-feed.js';
   
-  const STORAGE_KEY = 'oer-client-builder:widget-builder-form:v1';
+  type VocabularyTerm = {
+    value: string;
+    label: string;
+    notation?: string;
+  };
+
+  type VocabularySource = {
+    id: string;
+    name: string;
+    tagKey: string;
+    url: string;
+    status: 'idle' | 'loading' | 'ready' | 'error';
+    error: string;
+    terms: VocabularyTerm[];
+    selectedValues: string[];
+  };
+
+  type ManualTagRow = {
+    id: string;
+    key: string;
+    value: string;
+  };
+
+  const STORAGE_KEY = 'oer-client-builder:widget-builder-form:v2';
+  const TAG_KEY_SUGGESTIONS: string[] = [
+    '#about:id',
+    '#audience:id',
+    '#educationalLevel:id',
+    '#learningResourceType:id',
+    '#teaches:id',
+    '#assesses:id',
+    '#competencyRequired:id',
+    '#subject',
+    '#keywords',
+    '#inLanguage',
+    '#t',
+    '#location',
+    '#start',
+    '#end',
+    '#r',
+    '#d'
+  ];
+
+  const DEFAULT_VOCAB_PRESETS: Array<{ name: string; tagKey: string; url: string }> = [
+    {
+      name: 'About',
+      tagKey: '#about:id',
+      url: 'https://vocabs.edu-sharing.net/w3id.org/kim/hochschulfaechersystematik/n1.json'
+    },
+    {
+      name: 'Audience',
+      tagKey: '#audience:id',
+      url: 'https://vocabs.edu-sharing.net/w3id.org/edu-sharing/vocabs/dublin/educationalAudienceRole/index.json'
+    },
+    {
+      name: 'Learning Resource Type',
+      tagKey: '#learningResourceType:id',
+      url: 'https://vocabs.edu-sharing.net/w3id.org/edu-sharing/vocabs/switch/hcrt/scheme.json'
+    }
+  ];
+
   const DEFAULT_FORM_STATE: {
     relays: string;
     authors: string;
-    tags: string;
+    rawTags: string;
     search: string;
     kinds: string;
     maxItems: string;
@@ -16,10 +76,12 @@
     showAuthor: boolean;
     theme: string;
     autoPreview: boolean;
+    calendarStartDate: string;
+    calendarEndDate: string;
   } = {
     relays: 'wss://relay.edufeed.org,wss://relay-rpi.edufeed.org,wss://amb-relay.edufeed.org',
     authors: '',
-    tags: '[]',
+    rawTags: '[]',
     search: '',
     kinds: '30142,31922,31923,1,30023,0',
     maxItems: '50',
@@ -27,13 +89,224 @@
     showCategories: true,
     showAuthor: true,
     theme: 'auto',
-    autoPreview: false
+    autoPreview: false,
+    calendarStartDate: '',
+    calendarEndDate: ''
   };
+
+  let localIdCounter = 0;
+
+  function createLocalId(prefix: string): string {
+    localIdCounter += 1;
+    return `${prefix}-${localIdCounter}`;
+  }
+
+  function normalizeAmbFilterKey(input: string): string {
+    const key = input.trim();
+    const mappings: Record<string, string> = {
+      '#about': '#about:id',
+      '#audience': '#audience:id',
+      '#learningResourceType': '#learningResourceType:id',
+      '#educationalLevel': '#educationalLevel:id',
+      '#teaches': '#teaches:id',
+      '#assesses': '#assesses:id',
+      '#competencyRequired': '#competencyRequired:id'
+    };
+
+    return mappings[key] || key;
+  }
+
+  function createVocabularySource(
+    input?: Partial<Pick<VocabularySource, 'name' | 'tagKey' | 'url' | 'selectedValues'>>
+  ): VocabularySource {
+    return {
+      id: createLocalId('vocab'),
+      name: (input?.name || '').trim(),
+      tagKey: normalizeAmbFilterKey((input?.tagKey || '#about:id').trim()),
+      url: (input?.url || '').trim(),
+      status: 'idle',
+      error: '',
+      terms: [],
+      selectedValues: Array.isArray(input?.selectedValues)
+        ? input.selectedValues.map((v) => String(v).trim()).filter(Boolean)
+        : []
+    };
+  }
+
+  function createDefaultVocabularySources(): VocabularySource[] {
+    return DEFAULT_VOCAB_PRESETS.map((preset) => createVocabularySource(preset));
+  }
+
+  function createManualTagRow(key = '#t', value = ''): ManualTagRow {
+    return { id: createLocalId('manual'), key, value };
+  }
+
+  function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
+  }
+
+  function parseLegacyLanguageMapString(input: string): string {
+    const trimmed = input.trim();
+    if (!trimmed.startsWith('@{') || !trimmed.endsWith('}')) return trimmed;
+    const inner = trimmed.slice(2, -1);
+    const germanMatch = inner.match(/(?:^|[,;])\s*de\s*=\s*([^,;]+)\s*/i);
+    if (germanMatch?.[1]) return germanMatch[1].trim();
+    const firstValue = inner.match(/=\s*([^,;]+)/);
+    if (firstValue?.[1]) return firstValue[1].trim();
+    return inner.trim();
+  }
+
+  function pickLocalizedText(value: unknown): string {
+    if (typeof value === 'string') return parseLegacyLanguageMapString(value);
+    if (!isRecord(value)) return '';
+
+    const preferredLanguages = ['de', 'en', 'und'];
+    for (const lang of preferredLanguages) {
+      const candidate = value[lang];
+      if (typeof candidate === 'string' && candidate.trim()) return parseLegacyLanguageMapString(candidate);
+    }
+
+    for (const candidate of Object.values(value)) {
+      if (typeof candidate === 'string' && candidate.trim()) return parseLegacyLanguageMapString(candidate);
+    }
+
+    return '';
+  }
+
+  function parseNotation(value: unknown): string {
+    if (typeof value === 'string') return value.trim();
+    if (Array.isArray(value)) {
+      const first = value.find((entry) => typeof entry === 'string' && entry.trim().length > 0);
+      return typeof first === 'string' ? first.trim() : '';
+    }
+    return '';
+  }
+
+  function collectVocabularyTerms(
+    node: unknown,
+    terms: VocabularyTerm[],
+    seenValues: Set<string>
+  ): void {
+    if (!isRecord(node)) return;
+
+    const id = typeof node.id === 'string' ? node.id.trim() : '';
+    const notation = parseNotation(node.notation);
+    const label =
+      pickLocalizedText(node.prefLabel) || pickLocalizedText(node.title) || notation || id || 'Unbenannt';
+    const value = id || notation || label;
+
+    if (value && !seenValues.has(value)) {
+      terms.push({ value, label, notation: notation || undefined });
+      seenValues.add(value);
+    }
+
+    const narrower = Array.isArray(node.narrower) ? node.narrower : [];
+    narrower.forEach((child) => collectVocabularyTerms(child, terms, seenValues));
+  }
+
+  function extractVocabularyTerms(payload: unknown): VocabularyTerm[] {
+    const terms: VocabularyTerm[] = [];
+    const seenValues = new Set<string>();
+
+    if (Array.isArray(payload)) {
+      payload.forEach((node) => collectVocabularyTerms(node, terms, seenValues));
+    } else if (isRecord(payload)) {
+      collectVocabularyTerms(payload, terms, seenValues);
+
+      const topConcepts = Array.isArray(payload.hasTopConcept) ? payload.hasTopConcept : [];
+      topConcepts.forEach((node) => collectVocabularyTerms(node, terms, seenValues));
+
+      const narrower = Array.isArray(payload.narrower) ? payload.narrower : [];
+      narrower.forEach((node) => collectVocabularyTerms(node, terms, seenValues));
+
+      const graph = Array.isArray(payload['@graph']) ? payload['@graph'] : [];
+      graph.forEach((node) => collectVocabularyTerms(node, terms, seenValues));
+    }
+
+    return terms.sort((a, b) => a.label.localeCompare(b.label, 'de', { sensitivity: 'base' }));
+  }
+
+  function normalizeFilterEntry(entry: unknown): string[] | null {
+    if (!Array.isArray(entry) || entry.length < 2) return null;
+    const [rawKey, ...rawValues] = entry;
+    if (typeof rawKey !== 'string') return null;
+    const key = rawKey.trim();
+    if (!key) return null;
+    const values = rawValues
+      .map((value) => (typeof value === 'string' ? value.trim() : String(value).trim()))
+      .filter(Boolean);
+    if (values.length === 0) return null;
+    return [key, ...values];
+  }
+
+  function parseRawTagFilters(raw: string): { filters: string[][]; error: string } {
+    const trimmed = raw.trim();
+    if (!trimmed) return { filters: [], error: '' };
+
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (!Array.isArray(parsed)) return { filters: [], error: 'Raw-JSON muss ein Array sein.' };
+
+      const filters: string[][] = [];
+      parsed.forEach((entry) => {
+        const normalized = normalizeFilterEntry(entry);
+        if (normalized) filters.push(normalized);
+      });
+      return { filters, error: '' };
+    } catch {
+      return { filters: [], error: 'Raw-JSON ist kein gueltiges JSON.' };
+    }
+  }
+
+  function buildVocabularyTagFilters(sources: VocabularySource[]): string[][] {
+    return sources
+      .map((source) => {
+        const key = normalizeAmbFilterKey(source.tagKey);
+        const values = source.selectedValues.map((value) => value.trim()).filter(Boolean);
+        if (!key || values.length === 0) return null;
+        return [key, ...values];
+      })
+      .filter((entry): entry is string[] => Array.isArray(entry));
+  }
+
+  function buildManualTagFilters(rows: ManualTagRow[]): string[][] {
+    const grouped = new Map<string, Set<string>>();
+    rows.forEach((row) => {
+      const key = normalizeAmbFilterKey(row.key);
+      const value = row.value.trim();
+      if (!key || !value) return;
+      if (!grouped.has(key)) grouped.set(key, new Set<string>());
+      grouped.get(key)?.add(value);
+    });
+    return Array.from(grouped.entries()).map(([key, values]) => [key, ...Array.from(values)]);
+  }
+
+  function mergeTagFilters(groups: string[][][]): string[][] {
+    const grouped = new Map<string, Set<string>>();
+    groups.flat().forEach((entry) => {
+      const normalized = normalizeFilterEntry(entry);
+      if (!normalized) return;
+      const [key, ...values] = normalized;
+      if (!grouped.has(key)) grouped.set(key, new Set<string>());
+      values.forEach((value) => grouped.get(key)?.add(value));
+    });
+    return Array.from(grouped.entries()).map(([key, values]) => [key, ...Array.from(values)]);
+  }
+
+  function buildEffectiveTagFilters(): { filters: string[][]; error: string } {
+    const raw = parseRawTagFilters(rawTags);
+    const vocabulary = buildVocabularyTagFilters(vocabularySources);
+    const manual = buildManualTagFilters(manualTagRows);
+    return {
+      filters: mergeTagFilters([raw.filters, vocabulary, manual]),
+      error: raw.error
+    };
+  }
 
   // Form State mit Svelte 5 Runes
   let relays = $state(DEFAULT_FORM_STATE.relays);
   let authors = $state(DEFAULT_FORM_STATE.authors);
-  let tags = $state(DEFAULT_FORM_STATE.tags);
+  let rawTags = $state(DEFAULT_FORM_STATE.rawTags);
   let search = $state(DEFAULT_FORM_STATE.search);
   let kinds = $state(DEFAULT_FORM_STATE.kinds);
   let maxItems = $state(DEFAULT_FORM_STATE.maxItems);
@@ -42,6 +315,14 @@
   let showAuthor = $state(DEFAULT_FORM_STATE.showAuthor);
   let theme = $state(DEFAULT_FORM_STATE.theme);
   let autoPreview = $state(DEFAULT_FORM_STATE.autoPreview);
+  let calendarStartDate = $state(DEFAULT_FORM_STATE.calendarStartDate);
+  let calendarEndDate = $state(DEFAULT_FORM_STATE.calendarEndDate);
+
+  let vocabularySources = $state<VocabularySource[]>(createDefaultVocabularySources());
+  let manualTagRows = $state<ManualTagRow[]>([]);
+
+  let tagJsonError = $state('');
+  let effectiveTagsPreview = $state('[]');
 
   let isClient = $state(false);
   
@@ -61,18 +342,15 @@
     const kindArray = kinds.split(',').map(k => parseInt(k.trim(), 10)).filter(k => !isNaN(k)) as any;
     const maxItemsNum = parseInt(maxItems, 10) || 50;
     
-    let tagsArray: string[][] = [];
-    try {
-      tagsArray = JSON.parse(tags) as string[][];
-    } catch (e) {
-      console.error('Invalid JSON in tags:', e);
-    }
+    const { filters: tagsArray } = buildEffectiveTagFilters();
     
     return {
       relays: relayArray,
       kinds: kindArray,
       authors: authorArray,
       tags: tagsArray,
+      calendarStartDate: calendarStartDate.trim() || undefined,
+      calendarEndDate: calendarEndDate.trim() || undefined,
       search,
       categories: [],
       maxItems: maxItemsNum,
@@ -87,7 +365,8 @@
   type StoredFormState = {
     relays?: string;
     authors?: string;
-    tags?: string;
+    tags?: string; // legacy
+    rawTags?: string;
     search?: string;
     kinds?: string;
     maxItems?: string;
@@ -96,6 +375,15 @@
     showAuthor?: boolean;
     theme?: string;
     autoPreview?: boolean;
+    calendarStartDate?: string;
+    calendarEndDate?: string;
+    manualTagRows?: Array<{ key?: string; value?: string }>;
+    vocabularySources?: Array<{
+      name?: string;
+      tagKey?: string;
+      url?: string;
+      selectedValues?: string[];
+    }>;
   };
 
   function readStoredFormState(): StoredFormState | null {
@@ -119,7 +407,8 @@
   function applyStoredFormState(stored: StoredFormState): void {
     if (typeof stored.relays === 'string') relays = stored.relays;
     if (typeof stored.authors === 'string') authors = stored.authors;
-    if (typeof stored.tags === 'string') tags = stored.tags;
+    if (typeof stored.rawTags === 'string') rawTags = stored.rawTags;
+    else if (typeof stored.tags === 'string') rawTags = stored.tags;
     if (typeof stored.search === 'string') search = stored.search;
     if (typeof stored.kinds === 'string') kinds = stored.kinds;
     if (typeof stored.maxItems === 'string') maxItems = stored.maxItems;
@@ -128,6 +417,29 @@
     if (typeof stored.showAuthor === 'boolean') showAuthor = stored.showAuthor;
     if (typeof stored.theme === 'string') theme = stored.theme;
     if (typeof stored.autoPreview === 'boolean') autoPreview = stored.autoPreview;
+    if (typeof stored.calendarStartDate === 'string') calendarStartDate = stored.calendarStartDate;
+    if (typeof stored.calendarEndDate === 'string') calendarEndDate = stored.calendarEndDate;
+
+    if (Array.isArray(stored.vocabularySources)) {
+      const mapped = stored.vocabularySources.map((source) =>
+        createVocabularySource({
+          name: typeof source?.name === 'string' ? source.name : '',
+          tagKey: typeof source?.tagKey === 'string' ? source.tagKey : '#about:id',
+          url: typeof source?.url === 'string' ? source.url : '',
+          selectedValues: Array.isArray(source?.selectedValues) ? source.selectedValues : []
+        })
+      );
+      vocabularySources = mapped.length > 0 ? mapped : createDefaultVocabularySources();
+    }
+
+    if (Array.isArray(stored.manualTagRows)) {
+      manualTagRows = stored.manualTagRows.map((row) =>
+        createManualTagRow(
+          typeof row?.key === 'string' ? row.key : '#t',
+          typeof row?.value === 'string' ? row.value : ''
+        )
+      );
+    }
   }
 
   function applyPreview(): void {
@@ -137,7 +449,7 @@
   function resetForm(): void {
     relays = DEFAULT_FORM_STATE.relays;
     authors = DEFAULT_FORM_STATE.authors;
-    tags = DEFAULT_FORM_STATE.tags;
+    rawTags = DEFAULT_FORM_STATE.rawTags;
     search = DEFAULT_FORM_STATE.search;
     kinds = DEFAULT_FORM_STATE.kinds;
     maxItems = DEFAULT_FORM_STATE.maxItems;
@@ -146,9 +458,63 @@
     showAuthor = DEFAULT_FORM_STATE.showAuthor;
     theme = DEFAULT_FORM_STATE.theme;
     autoPreview = DEFAULT_FORM_STATE.autoPreview;
+    calendarStartDate = DEFAULT_FORM_STATE.calendarStartDate;
+    calendarEndDate = DEFAULT_FORM_STATE.calendarEndDate;
+    vocabularySources = createDefaultVocabularySources();
+    manualTagRows = [];
 
     if (isClient) clearStoredFormState();
     applyPreview();
+  }
+
+  async function loadVocabulary(sourceId: string): Promise<void> {
+    const source = vocabularySources.find((entry) => entry.id === sourceId);
+    if (!source) return;
+
+    const url = source.url.trim();
+    if (!url) {
+      source.status = 'error';
+      source.error = 'Bitte eine URL eingeben.';
+      source.terms = [];
+      return;
+    }
+
+    source.status = 'loading';
+    source.error = '';
+
+    try {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload = await response.json();
+      const terms = extractVocabularyTerms(payload);
+      if (terms.length === 0) throw new Error('Keine Konzepte gefunden.');
+
+      source.terms = terms;
+      source.status = 'ready';
+
+      const allowedValues = new Set(terms.map((term) => term.value));
+      source.selectedValues = source.selectedValues.filter((value) => allowedValues.has(value));
+    } catch (error) {
+      source.status = 'error';
+      source.error = error instanceof Error ? error.message : 'Vocabulary konnte nicht geladen werden.';
+      source.terms = [];
+    }
+  }
+
+  function addVocabularySource(): void {
+    vocabularySources = [...vocabularySources, createVocabularySource({ tagKey: '#about:id' })];
+  }
+
+  function removeVocabularySource(id: string): void {
+    vocabularySources = vocabularySources.filter((entry) => entry.id !== id);
+  }
+
+  function addManualTagRow(): void {
+    manualTagRows = [...manualTagRows, createManualTagRow()];
+  }
+
+  function removeManualTagRow(id: string): void {
+    manualTagRows = manualTagRows.filter((row) => row.id !== id);
   }
   
   // Generate HTML Code
@@ -169,6 +535,14 @@
     
     if (config.tags.length > 0) {
       attributes.push(`tags='${JSON.stringify(config.tags)}'`);
+    }
+
+    if (config.calendarStartDate) {
+      attributes.push(`calendarStartDate="${config.calendarStartDate}"`);
+    }
+
+    if (config.calendarEndDate) {
+      attributes.push(`calendarEndDate="${config.calendarEndDate}"`);
     }
     
     if (config.search) {
@@ -213,6 +587,12 @@
     if (config.tags.length > 0) {
       widgetInstance.setAttribute('tags', JSON.stringify(config.tags));
     }
+    if (config.calendarStartDate) {
+      widgetInstance.setAttribute('calendarStartDate', config.calendarStartDate);
+    }
+    if (config.calendarEndDate) {
+      widgetInstance.setAttribute('calendarEndDate', config.calendarEndDate);
+    }
     if (config.search) {
       widgetInstance.setAttribute('search', config.search);
     }
@@ -246,13 +626,20 @@
     generatedCode = generateCode(config);
   });
 
+  // Effective tags preview
+  $effect(() => {
+    const { filters, error } = buildEffectiveTagFilters();
+    tagJsonError = error;
+    effectiveTagsPreview = JSON.stringify(filters, null, 2);
+  });
+
   // Persist form state
   $effect(() => {
     if (!isClient) return;
-    const toStore = {
+    const toStore: StoredFormState = {
       relays,
       authors,
-      tags,
+      rawTags,
       search,
       kinds,
       maxItems,
@@ -260,7 +647,16 @@
       showCategories,
       showAuthor,
       theme,
-      autoPreview
+      autoPreview,
+      calendarStartDate,
+      calendarEndDate,
+      manualTagRows: manualTagRows.map((row) => ({ key: row.key, value: row.value })),
+      vocabularySources: vocabularySources.map((source) => ({
+        name: source.name,
+        tagKey: source.tagKey,
+        url: source.url,
+        selectedValues: source.selectedValues
+      }))
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(toStore));
@@ -331,14 +727,147 @@
         />
       </div>
       
+      <details class="accordion-item" open>
+        <summary>Filter-Assistent</summary>
+        <div class="accordion-content">
+          <h3>Vocabulary-basierte Filter</h3>
+          <p class="hint">
+            URL + Tag-Key angeben, Vocabulary laden und Begriffe auswaehlen. Die Auswahl wird in das
+            `tags`-Array uebernommen.
+          </p>
+
+          <datalist id="tag-key-suggestions">
+            {#each TAG_KEY_SUGGESTIONS as tagKey}
+              <option value={tagKey}></option>
+            {/each}
+          </datalist>
+
+          {#each vocabularySources as source (source.id)}
+            <div class="vocab-card">
+              <div class="vocab-grid">
+                <input
+                  type="text"
+                  bind:value={source.name}
+                  placeholder="Name (optional)"
+                  title="Name"
+                />
+                <input
+                  type="text"
+                  bind:value={source.tagKey}
+                  list="tag-key-suggestions"
+                  placeholder="#about:id"
+                  title="Tag-Key"
+                />
+              </div>
+              <div class="vocab-grid vocab-grid-url">
+                <input
+                  type="url"
+                  bind:value={source.url}
+                  placeholder="https://vocabs.edu-sharing.net/..."
+                  title="Vocabulary URL"
+                />
+                <div class="vocab-actions">
+                  <button
+                    type="button"
+                    class="small-button"
+                    onclick={() => loadVocabulary(source.id)}
+                    disabled={source.status === 'loading' || !source.url.trim()}
+                  >
+                    {source.status === 'loading' ? 'Lade...' : 'Vocabulary laden'}
+                  </button>
+                  <button type="button" class="small-button muted" onclick={() => removeVocabularySource(source.id)}>
+                    Entfernen
+                  </button>
+                </div>
+              </div>
+
+              {#if source.status === 'ready'}
+                <small>{source.terms.length} Eintraege geladen</small>
+              {/if}
+              {#if source.status === 'error'}
+                <small class="error-text">{source.error}</small>
+              {/if}
+
+              {#if source.terms.length > 0}
+                <select multiple size="8" bind:value={source.selectedValues}>
+                  {#each source.terms as term}
+                    <option value={term.value}>
+                      {term.label}{term.notation ? ` (${term.notation})` : ''}
+                    </option>
+                  {/each}
+                </select>
+                <small>Mehrfachauswahl mit Strg/Cmd oder Shift.</small>
+              {/if}
+            </div>
+          {/each}
+
+          <button type="button" class="small-button" onclick={addVocabularySource}>
+            + Vocabulary hinzufuegen
+          </button>
+
+          <h3>Manuelle Tag-Filter (Key/Value)</h3>
+          <p class="hint">Fuer eigene AMB/Nostr-Tag-Filter. Gleicher Key wird intern zusammengefuehrt.</p>
+
+          {#if manualTagRows.length === 0}
+            <small>Noch keine manuellen Filter vorhanden.</small>
+          {/if}
+
+          {#each manualTagRows as row (row.id)}
+            <div class="manual-row">
+              <select bind:value={row.key}>
+                {#each TAG_KEY_SUGGESTIONS as option}
+                  <option value={option}>{option}</option>
+                {/each}
+              </select>
+              <input type="text" bind:value={row.value} placeholder="Wert" />
+              <button type="button" class="small-button muted" onclick={() => removeManualTagRow(row.id)}>
+                Entfernen
+              </button>
+            </div>
+          {/each}
+
+          <button type="button" class="small-button" onclick={addManualTagRow}>
+            + Key/Value Zeile
+          </button>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>Calendar Zeitbereich</summary>
+        <div class="accordion-content">
+          <div class="calendar-range-grid">
+            <div>
+              <label for="calendarStartDate">Startdatum</label>
+              <input type="date" id="calendarStartDate" bind:value={calendarStartDate} />
+            </div>
+            <div>
+              <label for="calendarEndDate">Enddatum</label>
+              <input type="date" id="calendarEndDate" bind:value={calendarEndDate} />
+            </div>
+          </div>
+          <small>Filtert nur Calendar Events anhand ihres `start`-Datums.</small>
+        </div>
+      </details>
+
+      <details class="accordion-item">
+        <summary>Erweiterte Filter (Raw JSON)</summary>
+        <div class="accordion-content">
+          <label for="rawTags">Zusatz-Filter als JSON Array</label>
+          <textarea
+            id="rawTags"
+            bind:value={rawTags}
+            rows="4"
+            placeholder='[["#teaches:id","religion"],["#educationalLevel","primary"]]'
+          ></textarea>
+          {#if tagJsonError}
+            <small class="error-text">{tagJsonError}</small>
+          {/if}
+        </div>
+      </details>
+
       <div class="form-group">
-        <label for="tags">Tags (JSON Array)</label>
-        <textarea
-          id="tags"
-          bind:value={tags}
-          rows="3"
-          placeholder='[["#teaches:id","religion"],["#educationalLevel","primary"]]'
-        ></textarea>
+        <div class="form-label">Aktives Tags-Array (generiert)</div>
+        <pre class="code-preview">{effectiveTagsPreview}</pre>
       </div>
       
       <div class="form-group">
@@ -359,7 +888,7 @@
           bind:value={kinds}
           placeholder="30142,31922,1,30023,0"
         />
-        <small>30142=OER, 31922=Veranstaltung, 1=Note, 30023=Artikel, 0=Profil</small>
+        <small>30142=OER, 31922=Calendar date, 31923=Calendar time, 1=Note, 30023=Artikel, 0=Profil</small>
       </div>
       
       <div class="form-group">
@@ -451,6 +980,12 @@
     margin-bottom: 20px;
     color: #333;
   }
+
+  h3 {
+    margin: 12px 0 10px;
+    color: #1f2937;
+    font-size: 15px;
+  }
   
   .builder-layout {
     display: grid;
@@ -481,25 +1016,34 @@
     font-weight: 600;
     color: #374151;
   }
+
+  .form-label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 600;
+    color: #374151;
+  }
   
   .form-group input,
   .form-group select,
-  .form-group textarea {
+  .accordion-content textarea {
     width: 100%;
     padding: 8px 12px;
     border: 1px solid #d1d5db;
     border-radius: 6px;
     font-size: 14px;
+    box-sizing: border-box;
   }
   
   .form-group input:focus,
   .form-group select:focus,
-  .form-group textarea:focus {
+  .accordion-content textarea:focus {
     outline: none;
     border-color: #7e22ce;
   }
   
-  .form-group small {
+  .form-group small,
+  small {
     display: block;
     margin-top: 5px;
     color: #6b7280;
@@ -515,6 +1059,123 @@
   
   .checkbox-group input {
     width: auto;
+  }
+
+  .accordion-item {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+
+  .accordion-item summary {
+    cursor: pointer;
+    padding: 12px 14px;
+    font-weight: 700;
+    color: #1f2937;
+    list-style: none;
+  }
+
+  .accordion-item summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .accordion-content {
+    border-top: 1px solid #e5e7eb;
+    padding: 12px 14px 14px;
+    display: grid;
+    gap: 12px;
+  }
+
+  .hint {
+    margin: 0;
+    font-size: 13px;
+    color: #4b5563;
+  }
+
+  .vocab-card {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 10px;
+    background: #f8fafc;
+    display: grid;
+    gap: 8px;
+  }
+
+  .vocab-grid {
+    display: grid;
+    gap: 8px;
+    grid-template-columns: 1fr 170px;
+  }
+
+  .vocab-grid-url {
+    grid-template-columns: 1fr auto;
+  }
+
+  .vocab-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .vocab-card select[multiple] {
+    width: 100%;
+    min-height: 150px;
+    padding: 8px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    background: #fff;
+  }
+
+  .manual-row {
+    display: grid;
+    grid-template-columns: 190px 1fr auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .calendar-range-grid {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .small-button {
+    border: none;
+    padding: 8px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #7e22ce;
+    color: #fff;
+  }
+
+  .small-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  .small-button.muted {
+    background: #e5e7eb;
+    color: #111827;
+  }
+
+  .error-text {
+    color: #b91c1c;
+  }
+
+  .code-preview {
+    margin: 0;
+    padding: 10px;
+    border-radius: 6px;
+    background: #111827;
+    color: #e5e7eb;
+    font-size: 12px;
+    line-height: 1.4;
+    max-height: 220px;
+    overflow: auto;
   }
   
   .preview-section {
@@ -629,4 +1290,19 @@
   .copy-button:hover {
     background: #6b21a8;
   }
+
+  @media (max-width: 700px) {
+    .vocab-grid,
+    .vocab-grid-url,
+    .manual-row,
+    .calendar-range-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .vocab-actions {
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+  }
 </style>
+

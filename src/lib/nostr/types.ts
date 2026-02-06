@@ -99,7 +99,7 @@ export interface AMBMetadata {
   version?: string;
   isBasedOn?: string;
   
-  // Zusätzliche Metadaten
+  // ZusÃ¤tzliche Metadaten
   [key: string]: any;
 }
 
@@ -201,6 +201,8 @@ export interface WidgetConfig {
   kinds: NostrEventKind[];
   authors: string[];
   tags: string[][];
+  calendarStartDate?: string;
+  calendarEndDate?: string;
   search: string;
   categories: string[];
   instituteFilters?: string[][];
@@ -217,7 +219,7 @@ export interface WidgetConfig {
  */
 export interface FilterConfig {
   instituteFilters: string[][]; // Vordefinierte Filter (fix)
-  userFilters: string[][];       // Zusätzliche Filter (optional)
+  userFilters: string[][];       // ZusÃ¤tzliche Filter (optional)
   searchQuery?: string;
   selectedCategories?: string[];
   selectedAuthors?: string[];
