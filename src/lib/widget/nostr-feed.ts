@@ -870,7 +870,7 @@ TEMPLATE.innerHTML = `
 
     <div class="profile-header" id="profileHeader">
       <div class="profile-banner" id="profileBanner">
-        <button class="profile-back" id="profileBack" type="button">â† ZurÃ¼ck zur Ãœbersicht</button>
+        <button class="profile-back" id="profileBack" type="button">← Zurück zur Übersicht</button>
       </div>
       <div class="profile-header-card">
         <div class="profile-avatar-large" id="profileAvatarLarge"></div>
@@ -881,7 +881,7 @@ TEMPLATE.innerHTML = `
       </div>
       <div class="profile-about" id="profileAbout"></div>
       <div class="profile-section-row">
-        <h3 class="profile-section-title">VerÃ¶ffentlichungen & Termine</h3>
+        <h3 class="profile-section-title">Veröffentlichungen & Termine</h3>
         <div class="profile-type-filters" id="profileTypeFilters">
           <button class="profile-filter-chip" type="button" data-filter="all">Alle</button>
           <button class="profile-filter-chip" type="button" data-filter="calendar">Termine</button>
@@ -907,7 +907,7 @@ TEMPLATE.innerHTML = `
       </div>
       <div class="modal-description" id="modalDescription"></div>
       <div class="modal-tags" id="modalTags"></div>
-      <a class="modal-link" id="modalLink" target="_blank">Ã–ffnen</a>
+      <a class="modal-link" id="modalLink" target="_blank">Öffnen</a>
     </div>
   </div>
 `;
@@ -934,13 +934,13 @@ export class NostrFeedWidget extends HTMLElement {
     super();
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.appendChild(TEMPLATE.content.cloneNode(true));
-    // Config wird im connectedCallback geparst, damit Attribute verfÃ¼gbar sind
+    // Config wird im connectedCallback geparst, damit Attribute verfügbar sind
   }
 
   connectedCallback(): void {
     console.log('[NostrFeedWidget] connectedCallback called');
     console.log('[NostrFeedWidget] relays attribute:', this.getAttribute('relays'));
-    // Config hier parsen, damit Attribute verfÃ¼gbar sind
+    // Config hier parsen, damit Attribute verfügbar sind
     this.config = this.parseConfig();
     this.searchQuery = this.config.search || '';
     this.resetPagination();
@@ -1120,7 +1120,7 @@ export class NostrFeedWidget extends HTMLElement {
       searchInput.style.display = 'none';
     }
 
-    // Modal schlieÃŸen
+    // Modal schließen
     modalClose.addEventListener('click', () => {
       modal.classList.remove('open');
     });
@@ -1649,7 +1649,7 @@ export class NostrFeedWidget extends HTMLElement {
         if (normalized) return normalized;
       }
 
-      // Kanban-Boards: d-Tag ist ein Identifier (nostr:kanban:board-...), "Ã–ffnen" soll direkt zur Board-App gehen.
+      // Kanban-Boards: d-Tag ist ein Identifier (nostr:kanban:board-...), "Öffnen" soll direkt zur Board-App gehen.
       if (typeof dRaw === 'string' && dRaw.startsWith('nostr:kanban:board-')) {
         const kanbanRef = (event.event.tags || [])
           .filter((t) => t[0] === 'a' && typeof t[1] === 'string')
@@ -1712,7 +1712,7 @@ export class NostrFeedWidget extends HTMLElement {
         if (endUnix) {
           const endFmt = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', ...(endTz ? { timeZone: endTz } : {}) });
           const endStr = endFmt.format(new Date(endUnix * 1000));
-          return startStr === endStr ? startStr : `${startStr} â€“ ${endStr}`;
+          return startStr === endStr ? startStr : `${startStr} – ${endStr}`;
         }
         return startStr;
       }
@@ -1728,7 +1728,7 @@ export class NostrFeedWidget extends HTMLElement {
           const endStr = Number.isFinite(endDate.getTime())
             ? new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium' }).format(endDate)
             : end;
-          return startStr === endStr ? startStr : `${startStr} â€“ ${endStr}`;
+          return startStr === endStr ? startStr : `${startStr} – ${endStr}`;
         }
 
         return startStr;
@@ -1750,13 +1750,13 @@ export class NostrFeedWidget extends HTMLElement {
           timeStyle: 'short',
           ...(endTz ? { timeZone: endTz } : {})
         });
-        return `${startStr} â€“ ${endFmt.format(new Date(end * 1000))}`;
+        return `${startStr} – ${endFmt.format(new Date(end * 1000))}`;
       }
       return startStr;
     }
 
     if (typeof start === 'string') {
-      if (typeof end === 'string' && end) return `${start} â€“ ${end}`;
+      if (typeof end === 'string' && end) return `${start} – ${end}`;
       return start;
     }
 
@@ -1810,7 +1810,7 @@ export class NostrFeedWidget extends HTMLElement {
     const modalLink = this.shadow.getElementById('modalLink') as HTMLAnchorElement;
 
     const profile = this.profiles.get(pubkey) || {};
-    const title = profile.display_name || profile.name || pubkey.slice(0, 8) + 'â€¦' + pubkey.slice(-4);
+    const title = profile.display_name || profile.name || pubkey.slice(0, 8) + '…' + pubkey.slice(-4);
 
     modalImage.style.backgroundImage = profile.banner && this.isSafeHttpUrl(profile.banner) ? `url('${profile.banner}')` : 'none';
     modalTitle.textContent = title;
@@ -1941,7 +1941,7 @@ export class NostrFeedWidget extends HTMLElement {
             <span class="card-author">${authorName || 'Unbekannt'}</span>
           </div>
         ` : ''}
-        <a class="card-link" href="${url || '#'}" target="_blank">Ã–ffnen &rarr;</a>
+        <a class="card-link" href="${url || '#'}" target="_blank">Öffnen &rarr;</a>
       </div>
     `;
     */
@@ -2013,15 +2013,15 @@ export class NostrFeedWidget extends HTMLElement {
       const location = typeof metadata?.location === 'string' ? metadata.location : '';
       const locationUrl = location && this.isSafeHttpUrl(location) ? location : '';
       if (!locationUrl && location) extraLines.push(`Ort: ${location}`);
-      if (metadata?.start === undefined) extraLines.push('Hinweis: start fehlt (Event ist unvollstÃ¤ndig).');
+      if (metadata?.start === undefined) extraLines.push('Hinweis: start fehlt (Event ist unvollständig).');
     }
     if (event.type === 'article') {
       if (metadata?.publishedAt) {
-        extraLines.push(`VerÃ¶ffentlicht: ${new Date(Number(metadata.publishedAt) * 1000).toLocaleString('de-DE')}`);
+        extraLines.push(`Veröffentlicht: ${new Date(Number(metadata.publishedAt) * 1000).toLocaleString('de-DE')}`);
       }
     }
-    // AMB/OER (Kind 30142) Zusatzinfos werden als strukturierte KV-Zeilen unten angehÃ¤ngt,
-    // damit Links (Lizenz, OER, Referenzen) klickbar sind und nicht doppelt im FlieÃŸtext landen.
+    // AMB/OER (Kind 30142) Zusatzinfos werden als strukturierte KV-Zeilen unten angehängt,
+    // damit Links (Lizenz, OER, Referenzen) klickbar sind und nicht doppelt im Fließtext landen.
 
     const baseText = metadata?.summary || metadata?.description || metadata?.content || event.event.content || '';
     const description = extraLines.length > 0 ? [...extraLines, '', String(baseText)].join('\n') : String(baseText);
@@ -2179,7 +2179,7 @@ export class NostrFeedWidget extends HTMLElement {
     if (event.type === 'amb') {
       const addPersonTag = (role: string, pubkey: string) => {
         const prof = this.profiles.get(pubkey);
-        const name = prof?.name || prof?.display_name || pubkey.slice(0, 8) + 'â€¦' + pubkey.slice(-4);
+        const name = prof?.name || prof?.display_name || pubkey.slice(0, 8) + '…' + pubkey.slice(-4);
         const btn = document.createElement('button');
         btn.type = 'button';
         btn.className = 'modal-tag';
