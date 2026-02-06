@@ -27,6 +27,8 @@
     scope: 'global' | 'amb';
   };
 
+  type BuilderTab = 'general' | 'filters' | 'design';
+
   const STORAGE_KEY = 'oer-client-builder:widget-builder-form:v2';
   const TAG_KEY_SUGGESTIONS: string[] = [
     '#creator:id',
@@ -88,6 +90,11 @@
     showSearch: boolean;
     showCategories: boolean;
     showAuthor: boolean;
+    showOverlayChips: boolean;
+    showKeywords: boolean;
+    accentColor: string;
+    cardMinWidth: string;
+    maxColumns: string;
     theme: string;
     autoPreview: boolean;
     calendarStartDate: string;
@@ -109,6 +116,11 @@
     showSearch: true,
     showCategories: true,
     showAuthor: true,
+    showOverlayChips: true,
+    showKeywords: true,
+    accentColor: '#7e22ce',
+    cardMinWidth: '280',
+    maxColumns: '',
     theme: 'auto',
     autoPreview: false,
     calendarStartDate: '',
@@ -135,6 +147,16 @@
     };
 
     return mappings[key] || key;
+  }
+
+  function normalizeHexColor(input: string): string {
+    const trimmed = input.trim();
+    if (/^#[0-9a-fA-F]{6}$/.test(trimmed)) return trimmed.toLowerCase();
+    if (/^#[0-9a-fA-F]{3}$/.test(trimmed)) {
+      const short = trimmed.slice(1);
+      return `#${short[0]}${short[0]}${short[1]}${short[1]}${short[2]}${short[2]}`.toLowerCase();
+    }
+    return '';
   }
 
   function createVocabularySource(
@@ -436,10 +458,16 @@
   let showSearch = $state(DEFAULT_FORM_STATE.showSearch);
   let showCategories = $state(DEFAULT_FORM_STATE.showCategories);
   let showAuthor = $state(DEFAULT_FORM_STATE.showAuthor);
+  let showOverlayChips = $state(DEFAULT_FORM_STATE.showOverlayChips);
+  let showKeywords = $state(DEFAULT_FORM_STATE.showKeywords);
+  let accentColor = $state(DEFAULT_FORM_STATE.accentColor);
+  let cardMinWidth = $state(DEFAULT_FORM_STATE.cardMinWidth);
+  let maxColumns = $state(DEFAULT_FORM_STATE.maxColumns);
   let theme = $state(DEFAULT_FORM_STATE.theme);
   let autoPreview = $state(DEFAULT_FORM_STATE.autoPreview);
   let calendarStartDate = $state(DEFAULT_FORM_STATE.calendarStartDate);
   let calendarEndDate = $state(DEFAULT_FORM_STATE.calendarEndDate);
+  let activeFormTab = $state<BuilderTab>('general');
 
   let vocabularySources = $state<VocabularySource[]>(createDefaultVocabularySources());
   let manualTagRows = $state<ManualTagRow[]>([]);
@@ -464,6 +492,9 @@
     const authorArray = authors.split(',').map(a => a.trim()).filter(Boolean);
     const kindArray = kinds.split(',').map(k => parseInt(k.trim(), 10)).filter(k => !isNaN(k)) as any;
     const maxItemsNum = parseInt(maxItems, 10) || 50;
+    const cardMinWidthNum = parseInt(cardMinWidth, 10);
+    const maxColumnsNum = parseInt(maxColumns, 10);
+    const normalizedAccentColor = normalizeHexColor(accentColor);
     
     const { globalTags, ambTags } = buildEffectiveTagFilters();
     
@@ -481,6 +512,11 @@
       showSearch,
       showCategories,
       showAuthor,
+      showOverlayChips,
+      showKeywords,
+      accentColor: normalizedAccentColor || undefined,
+      cardMinWidth: Number.isFinite(cardMinWidthNum) && cardMinWidthNum > 0 ? cardMinWidthNum : undefined,
+      maxColumns: Number.isFinite(maxColumnsNum) && maxColumnsNum > 0 ? maxColumnsNum : undefined,
       theme: theme as 'light' | 'dark' | 'auto',
       language: 'de'
     };
@@ -504,6 +540,11 @@
     showSearch?: boolean;
     showCategories?: boolean;
     showAuthor?: boolean;
+    showOverlayChips?: boolean;
+    showKeywords?: boolean;
+    accentColor?: string;
+    cardMinWidth?: string;
+    maxColumns?: string;
     theme?: string;
     autoPreview?: boolean;
     calendarStartDate?: string;
@@ -553,6 +594,11 @@
     if (typeof stored.showSearch === 'boolean') showSearch = stored.showSearch;
     if (typeof stored.showCategories === 'boolean') showCategories = stored.showCategories;
     if (typeof stored.showAuthor === 'boolean') showAuthor = stored.showAuthor;
+    if (typeof stored.showOverlayChips === 'boolean') showOverlayChips = stored.showOverlayChips;
+    if (typeof stored.showKeywords === 'boolean') showKeywords = stored.showKeywords;
+    if (typeof stored.accentColor === 'string') accentColor = stored.accentColor;
+    if (typeof stored.cardMinWidth === 'string') cardMinWidth = stored.cardMinWidth;
+    if (typeof stored.maxColumns === 'string') maxColumns = stored.maxColumns;
     if (typeof stored.theme === 'string') theme = stored.theme;
     if (typeof stored.autoPreview === 'boolean') autoPreview = stored.autoPreview;
     if (typeof stored.calendarStartDate === 'string') calendarStartDate = stored.calendarStartDate;
@@ -602,6 +648,11 @@
     showSearch = DEFAULT_FORM_STATE.showSearch;
     showCategories = DEFAULT_FORM_STATE.showCategories;
     showAuthor = DEFAULT_FORM_STATE.showAuthor;
+    showOverlayChips = DEFAULT_FORM_STATE.showOverlayChips;
+    showKeywords = DEFAULT_FORM_STATE.showKeywords;
+    accentColor = DEFAULT_FORM_STATE.accentColor;
+    cardMinWidth = DEFAULT_FORM_STATE.cardMinWidth;
+    maxColumns = DEFAULT_FORM_STATE.maxColumns;
     theme = DEFAULT_FORM_STATE.theme;
     autoPreview = DEFAULT_FORM_STATE.autoPreview;
     calendarStartDate = DEFAULT_FORM_STATE.calendarStartDate;
@@ -710,6 +761,26 @@
     if (!config.showAuthor) {
       attributes.push('showAuthor="false"');
     }
+
+    if (config.showOverlayChips === false) {
+      attributes.push('showOverlayChips="false"');
+    }
+
+    if (config.showKeywords === false) {
+      attributes.push('showKeywords="false"');
+    }
+
+    if (config.accentColor) {
+      attributes.push(`accentColor="${config.accentColor}"`);
+    }
+
+    if (config.cardMinWidth) {
+      attributes.push(`cardMinWidth="${config.cardMinWidth}"`);
+    }
+
+    if (config.maxColumns) {
+      attributes.push(`maxColumns="${config.maxColumns}"`);
+    }
     
     if (config.theme !== 'auto') {
       attributes.push(`theme="${config.theme}"`);
@@ -757,6 +828,21 @@
     }
     if (!config.showAuthor) {
       widgetInstance.setAttribute('showAuthor', 'false');
+    }
+    if (config.showOverlayChips === false) {
+      widgetInstance.setAttribute('showOverlayChips', 'false');
+    }
+    if (config.showKeywords === false) {
+      widgetInstance.setAttribute('showKeywords', 'false');
+    }
+    if (config.accentColor) {
+      widgetInstance.setAttribute('accentColor', config.accentColor);
+    }
+    if (config.cardMinWidth) {
+      widgetInstance.setAttribute('cardMinWidth', String(config.cardMinWidth));
+    }
+    if (config.maxColumns) {
+      widgetInstance.setAttribute('maxColumns', String(config.maxColumns));
     }
     widgetInstance.setAttribute('theme', config.theme);
     widgetInstance.setAttribute('maxItems', String(config.maxItems));
@@ -822,6 +908,11 @@
       showSearch,
       showCategories,
       showAuthor,
+      showOverlayChips,
+      showKeywords,
+      accentColor,
+      cardMinWidth,
+      maxColumns,
       theme,
       autoPreview,
       calendarStartDate,
@@ -882,322 +973,395 @@
   <div class="builder-layout">
     <div class="form-section">
       <h2>Konfiguration</h2>
-      
-      <div class="form-group">
-        <label for="relays">Relays (kommasepariert)</label>
-        <input
-          type="text"
-          id="relays"
-          bind:value={relays}
-          placeholder="wss://relay.edufeed.org,wss://relay-rpi.edufeed.org"
-        />
-      </div>
-      
-      <div class="form-group">
-        <label for="authors">Autoren (npub oder hex, kommasepariert)</label>
-        <input
-          type="text"
-          id="authors"
-          bind:value={authors}
-          placeholder="npub1...,npub2..."
-        />
-      </div>
-      
-      <details class="accordion-item" open>
-        <summary>Filter-Assistent</summary>
-        <div class="accordion-content">
-          <h3>Vocabulary-basierte Filter</h3>
-          <p class="hint">
-            URL + Tag-Key angeben, Vocabulary laden und Begriffe auswaehlen. Diese Filter gelten fuer
-            `kind:30142` (AMB). Ausnahme: `#t` gilt global fuer alle ausgewaehlten Kinds.
-          </p>
 
-          <datalist id="tag-key-suggestions">
-            {#each TAG_KEY_SUGGESTIONS as tagKey}
-              <option value={tagKey}></option>
-            {/each}
-          </datalist>
+      <div class="tabs">
+        <button type="button" class="tab-button" class:active={activeFormTab === 'general'} onclick={() => (activeFormTab = 'general')}>
+          Allgemein
+        </button>
+        <button type="button" class="tab-button" class:active={activeFormTab === 'filters'} onclick={() => (activeFormTab = 'filters')}>
+          Filter
+        </button>
+        <button type="button" class="tab-button" class:active={activeFormTab === 'design'} onclick={() => (activeFormTab = 'design')}>
+          Design
+        </button>
+      </div>
 
-          {#each vocabularySources as source (source.id)}
-            <div class="vocab-card">
-              <div class="vocab-grid">
-                <input
-                  type="text"
-                  bind:value={source.name}
-                  placeholder="Name (optional)"
-                  title="Name"
-                />
-                <input
-                  type="text"
-                  bind:value={source.tagKey}
-                  list="tag-key-suggestions"
-                  placeholder="#about:id"
-                  title="Tag-Key"
-                />
-              </div>
-              <div class="vocab-grid vocab-grid-url">
-                <input
-                  type="url"
-                  bind:value={source.url}
-                  placeholder="https://vocabs.edu-sharing.net/..."
-                  title="Vocabulary URL"
-                />
-                <div class="vocab-actions">
-                  <button
-                    type="button"
-                    class="small-button"
-                    onclick={() => loadVocabulary(source.id)}
-                    disabled={source.status === 'loading' || !source.url.trim()}
-                  >
-                    {source.status === 'loading' ? 'Lade...' : 'Vocabulary laden'}
-                  </button>
-                  <button type="button" class="small-button muted" onclick={() => removeVocabularySource(source.id)}>
-                    Entfernen
-                  </button>
+      {#if activeFormTab === 'general'}
+        <div class="form-group">
+          <label for="relays">Relays (kommasepariert)</label>
+          <input
+            type="text"
+            id="relays"
+            bind:value={relays}
+            placeholder="wss://relay.edufeed.org,wss://relay-rpi.edufeed.org"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="authors">Npubs / Autoren (npub oder hex, kommasepariert)</label>
+          <input
+            type="text"
+            id="authors"
+            bind:value={authors}
+            placeholder="npub1...,npub2..."
+          />
+          <small>Communities folgen als eigener Filter.</small>
+        </div>
+
+        <div class="form-group">
+          <label for="search">Suche</label>
+          <input
+            type="text"
+            id="search"
+            bind:value={search}
+            placeholder="Suchbegriffe... (ODER: Begriff1, Begriff2)"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="kinds">Event Types (kommasepariert)</label>
+          <input
+            type="text"
+            id="kinds"
+            bind:value={kinds}
+            placeholder="30142,31922,1,30023,0"
+          />
+          <small>30142=OER, 31922=Calendar date, 31923=Calendar time, 1=Note, 30023=Artikel, 0=Profil</small>
+        </div>
+
+        <div class="form-group">
+          <label for="maxItems">Maximale Anzahl</label>
+          <input
+            type="number"
+            id="maxItems"
+            bind:value={maxItems}
+            min="10"
+            max="200"
+          />
+        </div>
+      {/if}
+
+      {#if activeFormTab === 'filters'}
+        <details class="accordion-item" open>
+          <summary>AMB: Filter-Assistent</summary>
+          <div class="accordion-content">
+            <h3>Vocabulary-basierte Filter</h3>
+            <p class="hint">
+              URL + Tag-Key angeben, Vocabulary laden und Begriffe auswaehlen. Diese Filter gelten fuer
+              `kind:30142` (AMB). Ausnahme: `#t` gilt global fuer alle ausgewaehlten Kinds.
+            </p>
+
+            <datalist id="tag-key-suggestions">
+              {#each TAG_KEY_SUGGESTIONS as tagKey}
+                <option value={tagKey}></option>
+              {/each}
+            </datalist>
+
+            {#each vocabularySources as source (source.id)}
+              <div class="vocab-card">
+                <div class="vocab-grid">
+                  <input
+                    type="text"
+                    bind:value={source.name}
+                    placeholder="Name (optional)"
+                    title="Name"
+                  />
+                  <input
+                    type="text"
+                    bind:value={source.tagKey}
+                    list="tag-key-suggestions"
+                    placeholder="#about:id"
+                    title="Tag-Key"
+                  />
                 </div>
+                <div class="vocab-grid vocab-grid-url">
+                  <input
+                    type="url"
+                    bind:value={source.url}
+                    placeholder="https://vocabs.edu-sharing.net/..."
+                    title="Vocabulary URL"
+                  />
+                  <div class="vocab-actions">
+                    <button
+                      type="button"
+                      class="small-button"
+                      onclick={() => loadVocabulary(source.id)}
+                      disabled={source.status === 'loading' || !source.url.trim()}
+                    >
+                      {source.status === 'loading' ? 'Lade...' : 'Vocabulary laden'}
+                    </button>
+                    <button type="button" class="small-button muted" onclick={() => removeVocabularySource(source.id)}>
+                      Entfernen
+                    </button>
+                  </div>
+                </div>
+
+                {#if source.status === 'ready'}
+                  <small>{source.terms.length} Eintraege geladen</small>
+                {/if}
+                {#if source.status === 'error'}
+                  <small class="error-text">{source.error}</small>
+                {/if}
+
+                {#if source.terms.length > 0}
+                  <select multiple size="8" bind:value={source.selectedValues}>
+                    {#each source.terms as term}
+                      <option value={term.value}>
+                        {term.label}{term.notation ? ` (${term.notation})` : ''}
+                      </option>
+                    {/each}
+                  </select>
+                  <small>Mehrfachauswahl mit Strg/Cmd oder Shift.</small>
+                {/if}
               </div>
+            {/each}
 
-              {#if source.status === 'ready'}
-                <small>{source.terms.length} Eintraege geladen</small>
-              {/if}
-              {#if source.status === 'error'}
-                <small class="error-text">{source.error}</small>
-              {/if}
+            <button type="button" class="small-button" onclick={addVocabularySource}>
+              + Vocabulary hinzufuegen
+            </button>
 
-              {#if source.terms.length > 0}
-                <select multiple size="8" bind:value={source.selectedValues}>
-                  {#each source.terms as term}
-                    <option value={term.value}>
-                      {term.label}{term.notation ? ` (${term.notation})` : ''}
-                    </option>
+            <h3>Manuelle Tag-Filter (Key/Value)</h3>
+            <p class="hint">
+              Fuer eigene AMB/Nostr-Tag-Filter im Assistenten mit Scope pro Zeile (`global` oder `nur 30142`).
+              `#t` wirkt immer global. Gleicher Key wird intern zusammengefuehrt.
+            </p>
+
+            {#if manualTagRows.length === 0}
+              <small>Noch keine manuellen Filter vorhanden.</small>
+            {/if}
+
+            {#each manualTagRows as row (row.id)}
+              <div class="manual-row">
+                <select bind:value={row.key}>
+                  {#each TAG_KEY_SUGGESTIONS as option}
+                    <option value={option}>{option}</option>
                   {/each}
                 </select>
-                <small>Mehrfachauswahl mit Strg/Cmd oder Shift.</small>
-              {/if}
+                <input type="text" bind:value={row.value} placeholder="Wert" />
+                <select
+                  bind:value={row.scope}
+                  title="Scope"
+                  disabled={normalizeAmbFilterKey(row.key).trim().toLowerCase() === '#t'}
+                >
+                  <option value="amb">nur 30142</option>
+                  <option value="global">global</option>
+                </select>
+                <button type="button" class="small-button muted" onclick={() => removeManualTagRow(row.id)}>
+                  Entfernen
+                </button>
+              </div>
+            {/each}
+
+            <button type="button" class="small-button" onclick={addManualTagRow}>
+              + Key/Value Zeile
+            </button>
+          </div>
+        </details>
+
+        <details class="accordion-item">
+          <summary>AMB: Creator Filter (Person/Organisation)</summary>
+          <div class="accordion-content">
+            <p class="hint">
+              Erzeugt AMB-Tagfilter `#creator:type`, `#creator:name` und `#creator:id` (kommasepariert als ODER).
+            </p>
+
+            <div class="creator-type-grid">
+              <label class="creator-type-option">
+                <input type="checkbox" bind:checked={creatorIncludePerson} />
+                Person
+              </label>
+              <label class="creator-type-option">
+                <input type="checkbox" bind:checked={creatorIncludeOrganization} />
+                Organization
+              </label>
             </div>
-          {/each}
 
-          <button type="button" class="small-button" onclick={addVocabularySource}>
-            + Vocabulary hinzufuegen
-          </button>
-
-          <h3>Manuelle Tag-Filter (Key/Value)</h3>
-          <p class="hint">
-            Fuer eigene AMB/Nostr-Tag-Filter im Assistenten mit Scope pro Zeile (`global` oder `nur 30142`).
-            `#t` wirkt immer global. Gleicher Key wird intern zusammengefuehrt.
-          </p>
-
-          {#if manualTagRows.length === 0}
-            <small>Noch keine manuellen Filter vorhanden.</small>
-          {/if}
-
-          {#each manualTagRows as row (row.id)}
-            <div class="manual-row">
-              <select bind:value={row.key}>
-                {#each TAG_KEY_SUGGESTIONS as option}
-                  <option value={option}>{option}</option>
-                {/each}
-              </select>
-              <input type="text" bind:value={row.value} placeholder="Wert" />
-              <select
-                bind:value={row.scope}
-                title="Scope"
-                disabled={normalizeAmbFilterKey(row.key).trim().toLowerCase() === '#t'}
-              >
-                <option value="amb">nur 30142</option>
-                <option value="global">global</option>
-              </select>
-              <button type="button" class="small-button muted" onclick={() => removeManualTagRow(row.id)}>
-                Entfernen
-              </button>
+            <div class="form-group tight">
+              <label for="creatorNames">Creator Name(n) (optional)</label>
+              <input
+                type="text"
+                id="creatorNames"
+                bind:value={creatorNames}
+                placeholder="Max Mustermann, Universitaet XY"
+              />
             </div>
-          {/each}
 
-          <button type="button" class="small-button" onclick={addManualTagRow}>
-            + Key/Value Zeile
-          </button>
-        </div>
-      </details>
-
-      <details class="accordion-item">
-        <summary>Creator Filter (Person/Organisation)</summary>
-        <div class="accordion-content">
-          <p class="hint">
-            Erzeugt AMB-Tagfilter `#creator:type`, `#creator:name` und `#creator:id` (kommasepariert als ODER).
-          </p>
-
-          <div class="creator-type-grid">
-            <label class="creator-type-option">
-              <input type="checkbox" bind:checked={creatorIncludePerson} />
-              Person
-            </label>
-            <label class="creator-type-option">
-              <input type="checkbox" bind:checked={creatorIncludeOrganization} />
-              Organization
-            </label>
-          </div>
-
-          <div class="form-group tight">
-            <label for="creatorNames">Creator Name(n) (optional)</label>
-            <input
-              type="text"
-              id="creatorNames"
-              bind:value={creatorNames}
-              placeholder="Max Mustermann, Universitaet XY"
-            />
-          </div>
-
-          <div class="form-group tight">
-            <label for="creatorIds">Creator ID/URL(s) (optional)</label>
-            <input
-              type="text"
-              id="creatorIds"
-              bind:value={creatorIds}
-              placeholder="https://orcid.org/..., https://d-nb.info/gnd/..."
-            />
-          </div>
-        </div>
-      </details>
-
-      <details class="accordion-item">
-        <summary>Publisher Filter (Organisation)</summary>
-        <div class="accordion-content">
-          <p class="hint">
-            Erzeugt AMB-Tagfilter `#publisher:type`, `#publisher:name` und `#publisher:id` (kommasepariert als ODER).
-          </p>
-
-          <div class="publisher-type-grid">
-            <label class="publisher-type-option">
-              <input type="checkbox" bind:checked={publisherIncludeOrganization} />
-              Organization
-            </label>
-          </div>
-
-          <div class="form-group tight">
-            <label for="publisherNames">Publisher Name(n) (optional)</label>
-            <input
-              type="text"
-              id="publisherNames"
-              bind:value={publisherNames}
-              placeholder="Universitaet XY, Zentrale OER-Stelle"
-            />
-          </div>
-
-          <div class="form-group tight">
-            <label for="publisherIds">Publisher ID/URL(s) (optional)</label>
-            <input
-              type="text"
-              id="publisherIds"
-              bind:value={publisherIds}
-              placeholder="https://example.org/publisher/xyz, https://orcid.org/..."
-            />
-          </div>
-
-          <small>
-            `publisher:type` wird auf `Organization` gesetzt, wenn aktiviert.
-          </small>
-        </div>
-      </details>
-
-      <details class="accordion-item">
-        <summary>Calendar Zeitbereich</summary>
-        <div class="accordion-content">
-          <div class="calendar-range-grid">
-            <div>
-              <label for="calendarStartDate">Startdatum</label>
-              <input type="date" id="calendarStartDate" bind:value={calendarStartDate} />
-            </div>
-            <div>
-              <label for="calendarEndDate">Enddatum</label>
-              <input type="date" id="calendarEndDate" bind:value={calendarEndDate} />
+            <div class="form-group tight">
+              <label for="creatorIds">Creator ID/URL(s) (optional)</label>
+              <input
+                type="text"
+                id="creatorIds"
+                bind:value={creatorIds}
+                placeholder="https://orcid.org/..., https://d-nb.info/gnd/..."
+              />
             </div>
           </div>
-          <small>Filtert nur Calendar Events anhand ihres `start`-Datums.</small>
-        </div>
-      </details>
+        </details>
 
-      <details class="accordion-item">
-        <summary>Erweiterte Filter (Raw JSON)</summary>
-        <div class="accordion-content">
-          <label for="rawTags">Zusatz-Filter als JSON Array</label>
-          <textarea
-            id="rawTags"
-            bind:value={rawTags}
-            rows="4"
-            placeholder='[["#teaches:id","religion"],["#educationalLevel","primary"]]'
-          ></textarea>
-          {#if tagJsonError}
-            <small class="error-text">{tagJsonError}</small>
-          {/if}
-        </div>
-      </details>
+        <details class="accordion-item">
+          <summary>AMB: Publisher Filter (Organisation)</summary>
+          <div class="accordion-content">
+            <p class="hint">
+              Erzeugt AMB-Tagfilter `#publisher:type`, `#publisher:name` und `#publisher:id` (kommasepariert als ODER).
+            </p>
 
-      <div class="form-group">
-        <div class="form-label">Aktive Tag-Filter (generiert)</div>
-        <pre class="code-preview">{effectiveTagsPreview}</pre>
-      </div>
-      
-      <div class="form-group">
-        <label for="search">Suche</label>
-        <input
-          type="text"
-          id="search"
-          bind:value={search}
-          placeholder="Suchbegriffe... (ODER: Begriff1, Begriff2)"
-        />
-      </div>
-      
-      <div class="form-group">
-        <label for="kinds">Event Types (kommasepariert)</label>
-        <input
-          type="text"
-          id="kinds"
-          bind:value={kinds}
-          placeholder="30142,31922,1,30023,0"
-        />
-        <small>30142=OER, 31922=Calendar date, 31923=Calendar time, 1=Note, 30023=Artikel, 0=Profil</small>
-      </div>
-      
-      <div class="form-group">
-        <label for="maxItems">Maximale Anzahl</label>
-        <input
-          type="number"
-          id="maxItems"
-          bind:value={maxItems}
-          min="10"
-          max="200"
-        />
-      </div>
-      
-      <div class="form-group">
-        <label for="theme">Theme</label>
-        <select id="theme" bind:value={theme}>
-          <option value="auto">Auto</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </div>
-      
-      <div class="form-group checkbox-group">
-        <label>
-          <input type="checkbox" bind:checked={showSearch} />
-          Suchleiste anzeigen
-        </label>
-      </div>
-      
-      <div class="form-group checkbox-group">
-        <label>
-          <input type="checkbox" bind:checked={showCategories} />
-          Kategorien anzeigen
-        </label>
-      </div>
-      
-      <div class="form-group checkbox-group">
-        <label>
-          <input type="checkbox" bind:checked={showAuthor} />
-          Autoren anzeigen
-        </label>
-      </div>
+            <div class="publisher-type-grid">
+              <label class="publisher-type-option">
+                <input type="checkbox" bind:checked={publisherIncludeOrganization} />
+                Organization
+              </label>
+            </div>
+
+            <div class="form-group tight">
+              <label for="publisherNames">Publisher Name(n) (optional)</label>
+              <input
+                type="text"
+                id="publisherNames"
+                bind:value={publisherNames}
+                placeholder="Universitaet XY, Zentrale OER-Stelle"
+              />
+            </div>
+
+            <div class="form-group tight">
+              <label for="publisherIds">Publisher ID/URL(s) (optional)</label>
+              <input
+                type="text"
+                id="publisherIds"
+                bind:value={publisherIds}
+                placeholder="https://example.org/publisher/xyz, https://orcid.org/..."
+              />
+            </div>
+
+            <small>
+              `publisher:type` wird auf `Organization` gesetzt, wenn aktiviert.
+            </small>
+          </div>
+        </details>
+
+        <details class="accordion-item">
+          <summary>Calendar: Zeitbereich</summary>
+          <div class="accordion-content">
+            <div class="calendar-range-grid">
+              <div>
+                <label for="calendarStartDate">Startdatum</label>
+                <input type="date" id="calendarStartDate" bind:value={calendarStartDate} />
+              </div>
+              <div>
+                <label for="calendarEndDate">Enddatum</label>
+                <input type="date" id="calendarEndDate" bind:value={calendarEndDate} />
+              </div>
+            </div>
+            <small>Filtert nur Calendar Events anhand ihres `start`-Datums.</small>
+          </div>
+        </details>
+
+        <details class="accordion-item">
+          <summary>Erweiterte Filter (Raw JSON)</summary>
+          <div class="accordion-content">
+            <label for="rawTags">Zusatz-Filter als JSON Array</label>
+            <textarea
+              id="rawTags"
+              bind:value={rawTags}
+              rows="4"
+              placeholder='[["#teaches:id","religion"],["#educationalLevel","primary"]]'
+            ></textarea>
+            {#if tagJsonError}
+              <small class="error-text">{tagJsonError}</small>
+            {/if}
+          </div>
+        </details>
+
+        <div class="form-group">
+          <div class="form-label">Aktive Tag-Filter (generiert)</div>
+          <pre class="code-preview">{effectiveTagsPreview}</pre>
+        </div>
+      {/if}
+
+      {#if activeFormTab === 'design'}
+        <div class="form-group">
+          <label for="theme">Theme</label>
+          <select id="theme" bind:value={theme}>
+            <option value="auto">Auto</option>
+            <option value="light">Light</option>
+            <option value="dark">Dark</option>
+          </select>
+        </div>
+
+        <div class="design-block">
+          <div class="design-title">Farben</div>
+          <div class="form-group tight">
+            <label for="accentColor">Accent-Farbe</label>
+            <div class="color-row">
+              <input type="color" id="accentColor" bind:value={accentColor} />
+              <input type="text" bind:value={accentColor} placeholder="#7e22ce" />
+            </div>
+            <small>Wird fuer aktive Chips und Links im Widget genutzt.</small>
+          </div>
+        </div>
+
+        <div class="design-block">
+          <div class="design-title">Grid</div>
+          <div class="form-group tight">
+            <label for="cardMinWidth">Kartenbreite (px)</label>
+            <input
+              type="number"
+              id="cardMinWidth"
+              bind:value={cardMinWidth}
+              min="180"
+              max="520"
+              step="10"
+            />
+          </div>
+          <div class="form-group tight">
+            <label for="maxColumns">Max. Spalten (optional)</label>
+            <input
+              type="number"
+              id="maxColumns"
+              bind:value={maxColumns}
+              min="1"
+              max="8"
+              step="1"
+              placeholder="leer = automatisch"
+            />
+            <small>Begrenzt die Spaltenzahl bei grossen Screens.</small>
+          </div>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" bind:checked={showSearch} />
+            Suchleiste anzeigen
+          </label>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" bind:checked={showCategories} />
+            Tag Wolke anzeigen
+          </label>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" bind:checked={showOverlayChips} />
+            Overlay Chips (AMB)
+          </label>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" bind:checked={showKeywords} />
+            Keywords (AMB)
+          </label>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" bind:checked={showAuthor} />
+            Autoren anzeigen
+          </label>
+        </div>
+      {/if}
     </div>
     
     <div class="preview-section">
@@ -1271,6 +1435,60 @@
     background: #f9fafb;
     padding: 20px;
     border-radius: 8px;
+  }
+
+  .tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .tab-button {
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    color: #111827;
+    padding: 8px 12px;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .tab-button.active {
+    background: #7e22ce;
+    border-color: #7e22ce;
+    color: #ffffff;
+  }
+
+  .design-block {
+    padding: 10px 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+    margin-bottom: 14px;
+  }
+
+  .design-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 10px;
+  }
+
+  .color-row {
+    display: grid;
+    grid-template-columns: 52px 1fr;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .color-row input[type='color'] {
+    width: 52px;
+    height: 36px;
+    padding: 0;
+    border-radius: 6px;
+    border: 1px solid #d1d5db;
   }
   
   .form-group {

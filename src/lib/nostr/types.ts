@@ -211,6 +211,11 @@ export interface WidgetConfig {
   showSearch: boolean;
   showCategories: boolean;
   showAuthor: boolean;
+  showOverlayChips?: boolean;
+  showKeywords?: boolean;
+  accentColor?: string;
+  cardMinWidth?: number;
+  maxColumns?: number;
   theme: 'light' | 'dark' | 'auto';
   language: string;
 }

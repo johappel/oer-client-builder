@@ -174,7 +174,7 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
 
   const overlayChips = uniq(chipCandidates).filter(Boolean).slice(0, 3);
   const overlayChipsHtml =
-    overlayChips.length > 0
+    ctx.config.showOverlayChips !== false && overlayChips.length > 0
       ? `<div class="oer-chip-stack">${overlayChips.map((c) => `<span class="oer-chip oer-chip-overlay">${c}</span>`).join('')}</div>`
       : '';
 
@@ -191,7 +191,7 @@ export function renderAmbCard(ctx: CardRenderContext): RenderedCard {
   const overlayTags = uniq(ctx.tags).slice(0, 3);
 
   const keywordsHtml =
-    overlayTypes.length > 0 || overlayTags.length > 0
+    ctx.config.showKeywords !== false && (overlayTypes.length > 0 || overlayTags.length > 0)
       ? `<div class="oer-keywords-stack">${[...overlayTypes, ...overlayTags].map((t) => `<span class="oer-keyword-chip">${t}</span>`).join('')}</div>`
       : '<div class="oer-keywords-stack"></div>';
 

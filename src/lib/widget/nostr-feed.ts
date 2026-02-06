@@ -921,6 +921,7 @@ export class NostrFeedWidget extends HTMLElement {
     this.config = this.parseConfig();
     this.searchQuery = this.config.search || '';
     console.log('[NostrFeedWidget] parsed config:', this.config);
+    this.applyVisualConfig();
     this.setupEventListeners();
     this.connectToRelays();
     this.queueProfileFetch(this.config.authors || []);
@@ -962,6 +963,11 @@ export class NostrFeedWidget extends HTMLElement {
     const showSearch = this.getAttribute('showSearch') !== 'false';
     const showCategories = this.getAttribute('showCategories') !== 'false';
     const showAuthor = this.getAttribute('showAuthor') !== 'false';
+    const showOverlayChips = this.getAttribute('showOverlayChips') !== 'false';
+    const showKeywords = this.getAttribute('showKeywords') !== 'false';
+    const accentColor = this.normalizeHexColor(this.getAttribute('accentColor') || '') || undefined;
+    const cardMinWidth = this.parsePositiveInt(this.getAttribute('cardMinWidth'), 280);
+    const maxColumns = this.parsePositiveInt(this.getAttribute('maxColumns'), 0) || undefined;
     const theme = (this.getAttribute('theme') as 'light' | 'dark' | 'auto') || 'auto';
     const language = this.getAttribute('language') || 'de';
     const calendarStartDate = this.getAttribute('calendarStartDate')?.trim() || '';
@@ -981,9 +987,73 @@ export class NostrFeedWidget extends HTMLElement {
       showSearch,
       showCategories,
       showAuthor,
+      showOverlayChips,
+      showKeywords,
+      accentColor,
+      cardMinWidth,
+      maxColumns,
       theme,
       language
     };
+  }
+
+  private parsePositiveInt(value: string | null, fallback: number): number {
+    const parsed = Number.parseInt((value || '').trim(), 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+    return parsed;
+  }
+
+  private normalizeHexColor(value: string): string | null {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const shortHex = /^#([0-9a-fA-F]{3})$/;
+    const longHex = /^#([0-9a-fA-F]{6})$/;
+    const shortMatch = trimmed.match(shortHex);
+    if (shortMatch) {
+      const [r, g, b] = shortMatch[1].split('');
+      return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
+    }
+    const longMatch = trimmed.match(longHex);
+    if (longMatch) return `#${longMatch[1].toLowerCase()}`;
+    return null;
+  }
+
+  private darkenHex(color: string, amount: number): string {
+    const normalized = this.normalizeHexColor(color);
+    if (!normalized) return color;
+    const value = normalized.slice(1);
+    const r = Number.parseInt(value.slice(0, 2), 16);
+    const g = Number.parseInt(value.slice(2, 4), 16);
+    const b = Number.parseInt(value.slice(4, 6), 16);
+    const factor = Math.max(0, Math.min(1, 1 - amount));
+    const toHex = (channel: number) => Math.round(channel * factor).toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  }
+
+  private applyVisualConfig(): void {
+    const grid = this.shadow.getElementById('grid') as HTMLElement;
+    const cardMinWidth = Math.max(180, this.config.cardMinWidth || 280);
+    const maxColumns = this.config.maxColumns && this.config.maxColumns > 0 ? this.config.maxColumns : null;
+    const gap = 20;
+
+    grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${cardMinWidth}px, 1fr))`;
+
+    if (maxColumns) {
+      const maxWidth = maxColumns * cardMinWidth + (maxColumns - 1) * gap;
+      grid.style.maxWidth = `${maxWidth}px`;
+      grid.style.marginLeft = 'auto';
+      grid.style.marginRight = 'auto';
+    } else {
+      grid.style.maxWidth = '';
+      grid.style.marginLeft = '';
+      grid.style.marginRight = '';
+    }
+
+    const accent = this.normalizeHexColor(this.config.accentColor || '');
+    if (!accent) return;
+    this.style.setProperty('--chip-active', accent);
+    this.style.setProperty('--link', accent);
+    this.style.setProperty('--link-hover', this.darkenHex(accent, 0.18));
   }
 
   private setupEventListeners(): void {
@@ -1210,12 +1280,18 @@ export class NostrFeedWidget extends HTMLElement {
 
   private handleEvent(event: any): void {
     const parsedEvent = parseEvent(event);
-    this.events.push(parsedEvent);
+    const includesProfileKind = Array.isArray(this.config.kinds) && this.config.kinds.includes(0);
 
-    // Profil-Events separat speichern
+    // Profil-Events immer fuer Name/Avatar cachen, aber nur als Card aufnehmen wenn kind:0 aktiviert ist.
     if (parsedEvent.type === 'profile') {
       this.profiles.set(event.pubkey, parsedEvent.metadata as ProfileMetadata);
+      if (!includesProfileKind) {
+        this.renderGrid();
+        return;
+      }
     }
+
+    this.events.push(parsedEvent);
 
     this.queueProfilesForEvent(parsedEvent);
 
