@@ -92,6 +92,9 @@
     showAuthor: boolean;
     showOverlayChips: boolean;
     showKeywords: boolean;
+    showLoadMore: boolean;
+    pageSize: string;
+    loadMoreStep: string;
     accentColor: string;
     cardMinWidth: string;
     maxColumns: string;
@@ -118,6 +121,9 @@
     showAuthor: true,
     showOverlayChips: true,
     showKeywords: true,
+    showLoadMore: true,
+    pageSize: '24',
+    loadMoreStep: '',
     accentColor: '#7e22ce',
     cardMinWidth: '280',
     maxColumns: '',
@@ -460,6 +466,9 @@
   let showAuthor = $state(DEFAULT_FORM_STATE.showAuthor);
   let showOverlayChips = $state(DEFAULT_FORM_STATE.showOverlayChips);
   let showKeywords = $state(DEFAULT_FORM_STATE.showKeywords);
+  let showLoadMore = $state(DEFAULT_FORM_STATE.showLoadMore);
+  let pageSize = $state(DEFAULT_FORM_STATE.pageSize);
+  let loadMoreStep = $state(DEFAULT_FORM_STATE.loadMoreStep);
   let accentColor = $state(DEFAULT_FORM_STATE.accentColor);
   let cardMinWidth = $state(DEFAULT_FORM_STATE.cardMinWidth);
   let maxColumns = $state(DEFAULT_FORM_STATE.maxColumns);
@@ -491,7 +500,19 @@
     const relayArray = relays.split(',').map(r => r.trim()).filter(Boolean);
     const authorArray = authors.split(',').map(a => a.trim()).filter(Boolean);
     const kindArray = kinds.split(',').map(k => parseInt(k.trim(), 10)).filter(k => !isNaN(k)) as any;
-    const maxItemsNum = parseInt(maxItems, 10) || 50;
+    const pageSizeNum = parseInt(pageSize, 10);
+    const loadMoreStepNum = parseInt(loadMoreStep, 10);
+    const effectivePageSize = Number.isFinite(pageSizeNum) && pageSizeNum > 0 ? pageSizeNum : 24;
+    const legacyStaleLoadMoreStep =
+      loadMoreStep.trim() === '24' &&
+      Number.isFinite(pageSizeNum) &&
+      pageSizeNum > 0 &&
+      pageSizeNum !== 24;
+    const effectiveLoadMoreStep =
+      Number.isFinite(loadMoreStepNum) && loadMoreStepNum > 0 && !legacyStaleLoadMoreStep
+        ? loadMoreStepNum
+        : effectivePageSize;
+    const maxItemsNum = Math.max(parseInt(maxItems, 10) || 50, effectivePageSize, effectiveLoadMoreStep);
     const cardMinWidthNum = parseInt(cardMinWidth, 10);
     const maxColumnsNum = parseInt(maxColumns, 10);
     const normalizedAccentColor = normalizeHexColor(accentColor);
@@ -514,6 +535,12 @@
       showAuthor,
       showOverlayChips,
       showKeywords,
+      showLoadMore,
+      pageSize: Number.isFinite(pageSizeNum) && pageSizeNum > 0 ? pageSizeNum : undefined,
+      loadMoreStep:
+        Number.isFinite(loadMoreStepNum) && loadMoreStepNum > 0 && !legacyStaleLoadMoreStep
+          ? loadMoreStepNum
+          : undefined,
       accentColor: normalizedAccentColor || undefined,
       cardMinWidth: Number.isFinite(cardMinWidthNum) && cardMinWidthNum > 0 ? cardMinWidthNum : undefined,
       maxColumns: Number.isFinite(maxColumnsNum) && maxColumnsNum > 0 ? maxColumnsNum : undefined,
@@ -542,6 +569,9 @@
     showAuthor?: boolean;
     showOverlayChips?: boolean;
     showKeywords?: boolean;
+    showLoadMore?: boolean;
+    pageSize?: string;
+    loadMoreStep?: string;
     accentColor?: string;
     cardMinWidth?: string;
     maxColumns?: string;
@@ -596,6 +626,14 @@
     if (typeof stored.showAuthor === 'boolean') showAuthor = stored.showAuthor;
     if (typeof stored.showOverlayChips === 'boolean') showOverlayChips = stored.showOverlayChips;
     if (typeof stored.showKeywords === 'boolean') showKeywords = stored.showKeywords;
+    if (typeof stored.showLoadMore === 'boolean') showLoadMore = stored.showLoadMore;
+    if (typeof stored.pageSize === 'string') pageSize = stored.pageSize;
+    if (typeof stored.loadMoreStep === 'string') {
+      const isLegacyDefault =
+        stored.loadMoreStep.trim() === '24' &&
+        (typeof stored.pageSize !== 'string' || stored.pageSize.trim() !== '24');
+      loadMoreStep = isLegacyDefault ? '' : stored.loadMoreStep;
+    }
     if (typeof stored.accentColor === 'string') accentColor = stored.accentColor;
     if (typeof stored.cardMinWidth === 'string') cardMinWidth = stored.cardMinWidth;
     if (typeof stored.maxColumns === 'string') maxColumns = stored.maxColumns;
@@ -650,6 +688,9 @@
     showAuthor = DEFAULT_FORM_STATE.showAuthor;
     showOverlayChips = DEFAULT_FORM_STATE.showOverlayChips;
     showKeywords = DEFAULT_FORM_STATE.showKeywords;
+    showLoadMore = DEFAULT_FORM_STATE.showLoadMore;
+    pageSize = DEFAULT_FORM_STATE.pageSize;
+    loadMoreStep = DEFAULT_FORM_STATE.loadMoreStep;
     accentColor = DEFAULT_FORM_STATE.accentColor;
     cardMinWidth = DEFAULT_FORM_STATE.cardMinWidth;
     maxColumns = DEFAULT_FORM_STATE.maxColumns;
@@ -770,6 +811,18 @@
       attributes.push('showKeywords="false"');
     }
 
+    if (config.showLoadMore === false) {
+      attributes.push('showLoadMore="false"');
+    }
+
+    if (config.pageSize) {
+      attributes.push(`pageSize="${config.pageSize}"`);
+    }
+
+    if (config.loadMoreStep) {
+      attributes.push(`loadMoreStep="${config.loadMoreStep}"`);
+    }
+
     if (config.accentColor) {
       attributes.push(`accentColor="${config.accentColor}"`);
     }
@@ -834,6 +887,15 @@
     }
     if (config.showKeywords === false) {
       widgetInstance.setAttribute('showKeywords', 'false');
+    }
+    if (config.showLoadMore === false) {
+      widgetInstance.setAttribute('showLoadMore', 'false');
+    }
+    if (config.pageSize) {
+      widgetInstance.setAttribute('pageSize', String(config.pageSize));
+    }
+    if (config.loadMoreStep) {
+      widgetInstance.setAttribute('loadMoreStep', String(config.loadMoreStep));
     }
     if (config.accentColor) {
       widgetInstance.setAttribute('accentColor', config.accentColor);
@@ -910,6 +972,9 @@
       showAuthor,
       showOverlayChips,
       showKeywords,
+      showLoadMore,
+      pageSize,
+      loadMoreStep,
       accentColor,
       cardMinWidth,
       maxColumns,
@@ -1030,13 +1095,14 @@
         </div>
 
         <div class="form-group">
-          <label for="maxItems">Maximale Anzahl</label>
+          <label for="pageSizeGeneral">Treffer pro Seite</label>
           <input
             type="number"
-            id="maxItems"
-            bind:value={maxItems}
-            min="10"
+            id="pageSizeGeneral"
+            bind:value={pageSize}
+            min="1"
             max="200"
+            step="1"
           />
         </div>
       {/if}
@@ -1324,6 +1390,29 @@
               placeholder="leer = automatisch"
             />
             <small>Begrenzt die Spaltenzahl bei grossen Screens.</small>
+          </div>
+        </div>
+
+        <div class="design-block">
+          <div class="design-title">Paging</div>
+          <div class="form-group checkbox-group">
+            <label>
+              <input type="checkbox" bind:checked={showLoadMore} />
+              Button "Mehr laden" anzeigen
+            </label>
+          </div>
+          <div class="form-group tight">
+            <label for="loadMoreStep">Nachladen pro Klick</label>
+            <input
+              type="number"
+              id="loadMoreStep"
+              bind:value={loadMoreStep}
+              min="1"
+              max="200"
+              step="1"
+              placeholder="leer = Treffer pro Seite"
+            />
+            <small>Leer bedeutet: gleich viele wie "Treffer pro Seite".</small>
           </div>
         </div>
 

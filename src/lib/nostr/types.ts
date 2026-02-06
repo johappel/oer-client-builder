@@ -216,6 +216,9 @@ export interface WidgetConfig {
   accentColor?: string;
   cardMinWidth?: number;
   maxColumns?: number;
+  showLoadMore?: boolean;
+  pageSize?: number;
+  loadMoreStep?: number;
   theme: 'light' | 'dark' | 'auto';
   language: string;
 }

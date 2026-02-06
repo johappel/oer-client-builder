@@ -569,6 +569,27 @@ TEMPLATE.innerHTML = `
       grid-column: 1 / -1;
     }
 
+    .paging {
+      display: flex;
+      justify-content: center;
+      margin-top: 18px;
+    }
+
+    .load-more-button {
+      border: none;
+      border-radius: 9999px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      background: var(--chip-active);
+      color: var(--chip-active-text);
+    }
+
+    .load-more-button:hover {
+      opacity: 0.92;
+    }
+
     .modal {
       display: none;
       position: fixed;
@@ -872,6 +893,7 @@ TEMPLATE.innerHTML = `
     <div class="grid" id="grid">
       <div class="loading">Verbinde mit Nostr...</div>
     </div>
+    <div class="paging" id="paging"></div>
   </div>
 
   <div class="modal" id="modal">
@@ -906,6 +928,7 @@ export class NostrFeedWidget extends HTMLElement {
   private searchQuery = '';
   private activeProfilePubkey: string | null = null;
   private profileTypeFilter: 'all' | 'calendar' | 'amb' = 'all';
+  private displayedCount = 0;
 
   constructor() {
     super();
@@ -920,6 +943,7 @@ export class NostrFeedWidget extends HTMLElement {
     // Config hier parsen, damit Attribute verfÃ¼gbar sind
     this.config = this.parseConfig();
     this.searchQuery = this.config.search || '';
+    this.resetPagination();
     console.log('[NostrFeedWidget] parsed config:', this.config);
     this.applyVisualConfig();
     this.setupEventListeners();
@@ -965,6 +989,9 @@ export class NostrFeedWidget extends HTMLElement {
     const showAuthor = this.getAttribute('showAuthor') !== 'false';
     const showOverlayChips = this.getAttribute('showOverlayChips') !== 'false';
     const showKeywords = this.getAttribute('showKeywords') !== 'false';
+    const showLoadMore = this.getAttribute('showLoadMore') !== 'false';
+    const pageSize = this.parsePositiveInt(this.getAttribute('pageSize'), 24);
+    const loadMoreStep = this.parsePositiveInt(this.getAttribute('loadMoreStep'), pageSize);
     const accentColor = this.normalizeHexColor(this.getAttribute('accentColor') || '') || undefined;
     const cardMinWidth = this.parsePositiveInt(this.getAttribute('cardMinWidth'), 280);
     const maxColumns = this.parsePositiveInt(this.getAttribute('maxColumns'), 0) || undefined;
@@ -989,6 +1016,9 @@ export class NostrFeedWidget extends HTMLElement {
       showAuthor,
       showOverlayChips,
       showKeywords,
+      showLoadMore,
+      pageSize,
+      loadMoreStep,
       accentColor,
       cardMinWidth,
       maxColumns,
@@ -1056,6 +1086,17 @@ export class NostrFeedWidget extends HTMLElement {
     this.style.setProperty('--link-hover', this.darkenHex(accent, 0.18));
   }
 
+  private resetPagination(): void {
+    const pageSize = Math.max(1, this.config.pageSize || 24);
+    this.displayedCount = pageSize;
+  }
+
+  private showNextPage(): void {
+    const step = Math.max(1, this.config.loadMoreStep || this.config.pageSize || 24);
+    this.displayedCount += step;
+    this.renderGrid();
+  }
+
   private setupEventListeners(): void {
     const searchInput = this.shadow.getElementById('searchBar') as HTMLElement;
     const profileBack = this.shadow.getElementById('profileBack') as HTMLButtonElement;
@@ -1071,6 +1112,7 @@ export class NostrFeedWidget extends HTMLElement {
       input.value = this.searchQuery;
       input.addEventListener('input', (e) => {
         this.searchQuery = (e.target as HTMLInputElement).value;
+        this.resetPagination();
         this.renderGrid();
       });
       searchInput.appendChild(input);
@@ -1092,6 +1134,7 @@ export class NostrFeedWidget extends HTMLElement {
     profileBack.addEventListener('click', () => {
       this.activeProfilePubkey = null;
       this.profileTypeFilter = 'all';
+      this.resetPagination();
       this.renderGrid();
     });
 
@@ -1100,6 +1143,7 @@ export class NostrFeedWidget extends HTMLElement {
         const filter = (btn.getAttribute('data-filter') || 'all') as any;
         if (filter === 'all' || filter === 'calendar' || filter === 'amb') {
           this.profileTypeFilter = filter;
+          this.resetPagination();
           this.renderGrid();
         }
       });
@@ -1400,6 +1444,7 @@ export class NostrFeedWidget extends HTMLElement {
           this.selectedCategories.push(category);
           chip.classList.add('active');
         }
+        this.resetPagination();
         this.renderGrid();
       });
       categoriesContainer.appendChild(chip);
@@ -1408,10 +1453,12 @@ export class NostrFeedWidget extends HTMLElement {
 
   private renderGrid(): void {
     const grid = this.shadow.getElementById('grid') as HTMLElement;
+    const paging = this.shadow.getElementById('paging') as HTMLElement;
     this.renderProfileHeader();
 
     if (this.events.length === 0) {
       grid.innerHTML = '<div class="loading">Verbinde mit Nostr...</div>';
+      paging.innerHTML = '';
       return;
     }
 
@@ -1472,15 +1519,30 @@ export class NostrFeedWidget extends HTMLElement {
 
     if (displayEvents.length === 0) {
       grid.innerHTML = '<div class="empty">Keine Ergebnisse gefunden</div>';
+      paging.innerHTML = '';
       return;
     }
 
     grid.innerHTML = '';
 
-    displayEvents.forEach(event => {
+    const pageActive = this.config.showLoadMore !== false;
+    const visibleLimit = pageActive ? Math.max(1, this.displayedCount) : displayEvents.length;
+    const visibleEvents = displayEvents.slice(0, visibleLimit);
+
+    visibleEvents.forEach(event => {
       const card = this.createCard(event);
       grid.appendChild(card);
     });
+
+    paging.innerHTML = '';
+    if (pageActive && displayEvents.length > visibleLimit) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'load-more-button';
+      button.textContent = `Mehr laden (${visibleLimit}/${displayEvents.length})`;
+      button.addEventListener('click', () => this.showNextPage());
+      paging.appendChild(button);
+    }
   }
 
   private isSafeHref(href: string): boolean {
@@ -1809,6 +1871,7 @@ export class NostrFeedWidget extends HTMLElement {
     this.activeProfilePubkey = normalized;
     this.profileTypeFilter = 'all';
     this.queueProfileFetch([normalized]);
+    this.resetPagination();
     (this.shadow.getElementById('modal') as HTMLElement).classList.remove('open');
     this.renderGrid();
   }
