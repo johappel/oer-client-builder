@@ -886,6 +886,7 @@ TEMPLATE.innerHTML = `
           <button class="profile-filter-chip" type="button" data-filter="all">Alle</button>
           <button class="profile-filter-chip" type="button" data-filter="calendar">Termine</button>
           <button class="profile-filter-chip" type="button" data-filter="amb">Materialien</button>
+          <button class="profile-filter-chip" type="button" data-filter="article">Artikel</button>
         </div>
       </div>
     </div>
@@ -927,7 +928,7 @@ export class NostrFeedWidget extends HTMLElement {
   private selectedCategories: string[] = [];
   private searchQuery = '';
   private activeProfilePubkey: string | null = null;
-  private profileTypeFilter: 'all' | 'calendar' | 'amb' = 'all';
+  private profileTypeFilter: 'all' | 'calendar' | 'amb' | 'article' = 'all';
   private displayedCount = 0;
 
   constructor() {
@@ -1141,7 +1142,7 @@ export class NostrFeedWidget extends HTMLElement {
     profileTypeFilters.querySelectorAll<HTMLButtonElement>('button[data-filter]').forEach((btn) => {
       btn.addEventListener('click', () => {
         const filter = (btn.getAttribute('data-filter') || 'all') as any;
-        if (filter === 'all' || filter === 'calendar' || filter === 'amb') {
+        if (filter === 'all' || filter === 'calendar' || filter === 'amb' || filter === 'article') {
           this.profileTypeFilter = filter;
           this.resetPagination();
           this.renderGrid();
