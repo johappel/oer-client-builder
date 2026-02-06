@@ -103,8 +103,23 @@ TEMPLATE.innerHTML = `
       width: 100%;
     }
 
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
     .search-bar {
-      margin-bottom: 20px;
+      flex: 1 1 340px;
+      min-width: 260px;
+    }
+
+    .overview-type-filters {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
     }
 
     .search-input {
@@ -862,10 +877,29 @@ TEMPLATE.innerHTML = `
       color: var(--chip-active-text);
       border-color: transparent;
     }
+
+    @media (max-width: 760px) {
+      .top-controls {
+        align-items: stretch;
+      }
+
+      .search-bar {
+        flex: 1 1 100%;
+        min-width: 0;
+      }
+    }
   </style>
 
   <div class="nostr-feed-container">
-    <div class="search-bar" id="searchBar"></div>
+    <div class="top-controls" id="topControls">
+      <div class="search-bar" id="searchBar"></div>
+      <div class="overview-type-filters" id="overviewTypeFilters">
+        <button class="profile-filter-chip" type="button" data-filter="all">Alle</button>
+        <button class="profile-filter-chip" type="button" data-filter="calendar">Termine</button>
+        <button class="profile-filter-chip" type="button" data-filter="amb">Materialien</button>
+        <button class="profile-filter-chip" type="button" data-filter="article">Artikel</button>
+      </div>
+    </div>
     <div class="categories" id="categories"></div>
 
     <div class="profile-header" id="profileHeader">
@@ -928,6 +962,7 @@ export class NostrFeedWidget extends HTMLElement {
   private selectedCategories: string[] = [];
   private searchQuery = '';
   private activeProfilePubkey: string | null = null;
+  private overviewTypeFilter: 'all' | 'calendar' | 'amb' | 'article' = 'all';
   private profileTypeFilter: 'all' | 'calendar' | 'amb' | 'article' = 'all';
   private displayedCount = 0;
 
@@ -986,6 +1021,7 @@ export class NostrFeedWidget extends HTMLElement {
     const categories = categoriesAttr ? JSON.parse(categoriesAttr) : [];
     const maxItems = parseInt(this.getAttribute('maxItems') || '50', 10);
     const showSearch = this.getAttribute('showSearch') !== 'false';
+    const showTypeFilters = this.getAttribute('showTypeFilters') !== 'false';
     const showCategories = this.getAttribute('showCategories') !== 'false';
     const showAuthor = this.getAttribute('showAuthor') !== 'false';
     const showOverlayChips = this.getAttribute('showOverlayChips') !== 'false';
@@ -1013,6 +1049,7 @@ export class NostrFeedWidget extends HTMLElement {
       categories,
       maxItems,
       showSearch,
+      showTypeFilters,
       showCategories,
       showAuthor,
       showOverlayChips,
@@ -1100,6 +1137,7 @@ export class NostrFeedWidget extends HTMLElement {
 
   private setupEventListeners(): void {
     const searchInput = this.shadow.getElementById('searchBar') as HTMLElement;
+    const overviewTypeFilters = this.shadow.getElementById('overviewTypeFilters') as HTMLElement;
     const profileBack = this.shadow.getElementById('profileBack') as HTMLButtonElement;
     const profileTypeFilters = this.shadow.getElementById('profileTypeFilters') as HTMLElement;
     const modal = this.shadow.getElementById('modal') as HTMLElement;
@@ -1149,23 +1187,51 @@ export class NostrFeedWidget extends HTMLElement {
         }
       });
     });
+
+    overviewTypeFilters.querySelectorAll<HTMLButtonElement>('button[data-filter]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const filter = (btn.getAttribute('data-filter') || 'all') as any;
+        if (filter === 'all' || filter === 'calendar' || filter === 'amb' || filter === 'article') {
+          this.overviewTypeFilter = filter;
+          this.resetPagination();
+          this.renderGrid();
+        }
+      });
+    });
+
+    this.updateOverviewTypeFilterUI();
+  }
+
+  private updateOverviewTypeFilterUI(): void {
+    const filterWrap = this.shadow.getElementById('overviewTypeFilters') as HTMLElement | null;
+    if (!filterWrap) return;
+
+    filterWrap.querySelectorAll<HTMLButtonElement>('button[data-filter]').forEach((btn) => {
+      const key = btn.getAttribute('data-filter') || 'all';
+      btn.classList.toggle('active', key === this.overviewTypeFilter);
+    });
   }
 
   private renderProfileHeader(): void {
     const header = this.shadow.getElementById('profileHeader') as HTMLElement;
+    const topControls = this.shadow.getElementById('topControls') as HTMLElement;
     const banner = this.shadow.getElementById('profileBanner') as HTMLElement;
     const avatar = this.shadow.getElementById('profileAvatarLarge') as HTMLElement;
     const nameEl = this.shadow.getElementById('profileName') as HTMLElement;
     const subEl = this.shadow.getElementById('profileSub') as HTMLElement;
     const aboutEl = this.shadow.getElementById('profileAbout') as HTMLElement;
     const searchBar = this.shadow.getElementById('searchBar') as HTMLElement;
+    const overviewFilterWrap = this.shadow.getElementById('overviewTypeFilters') as HTMLElement;
     const categories = this.shadow.getElementById('categories') as HTMLElement;
     const filterWrap = this.shadow.getElementById('profileTypeFilters') as HTMLElement;
 
     if (!this.activeProfilePubkey) {
       header.style.display = 'none';
+      topControls.style.display = this.config.showSearch || this.config.showTypeFilters !== false ? '' : 'none';
       searchBar.style.display = this.config.showSearch ? '' : 'none';
+      overviewFilterWrap.style.display = this.config.showTypeFilters !== false ? '' : 'none';
       categories.style.display = this.config.showCategories ? '' : 'none';
+      this.updateOverviewTypeFilterUI();
       return;
     }
 
@@ -1175,7 +1241,7 @@ export class NostrFeedWidget extends HTMLElement {
     const sub = (profile.nip05 || pubkey).trim();
 
     header.style.display = 'block';
-    searchBar.style.display = 'none';
+    topControls.style.display = 'none';
     categories.style.display = 'none';
 
     banner.style.backgroundImage =
@@ -1489,6 +1555,10 @@ export class NostrFeedWidget extends HTMLElement {
         if (event.type !== 'amb') return true;
         return matchesAllFilters(event, ambOnlyTags);
       });
+    }
+
+    if (!this.activeProfilePubkey && this.overviewTypeFilter !== 'all') {
+      filteredEvents = filteredEvents.filter((e) => e.type === this.overviewTypeFilter);
     }
 
     if (this.activeProfilePubkey) {

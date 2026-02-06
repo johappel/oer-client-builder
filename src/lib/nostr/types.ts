@@ -209,6 +209,7 @@ export interface WidgetConfig {
   instituteFilters?: string[][];
   maxItems: number;
   showSearch: boolean;
+  showTypeFilters?: boolean;
   showCategories: boolean;
   showAuthor: boolean;
   showOverlayChips?: boolean;

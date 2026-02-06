@@ -91,6 +91,7 @@
     kinds: string;
     maxItems: string;
     showSearch: boolean;
+    showTypeFilters: boolean;
     showCategories: boolean;
     showAuthor: boolean;
     showOverlayChips: boolean;
@@ -120,6 +121,7 @@
     kinds: '30142,31922,31923',
     maxItems: '50',
     showSearch: true,
+    showTypeFilters: true,
     showCategories: false,
     showAuthor: true,
     showOverlayChips: true,
@@ -474,6 +476,7 @@
   let kinds = $state(DEFAULT_FORM_STATE.kinds);
   let maxItems = $state(DEFAULT_FORM_STATE.maxItems);
   let showSearch = $state(DEFAULT_FORM_STATE.showSearch);
+  let showTypeFilters = $state(DEFAULT_FORM_STATE.showTypeFilters);
   let showCategories = $state(DEFAULT_FORM_STATE.showCategories);
   let showAuthor = $state(DEFAULT_FORM_STATE.showAuthor);
   let showOverlayChips = $state(DEFAULT_FORM_STATE.showOverlayChips);
@@ -543,6 +546,7 @@
       categories: [],
       maxItems: maxItemsNum,
       showSearch,
+      showTypeFilters,
       showCategories,
       showAuthor,
       showOverlayChips,
@@ -577,6 +581,7 @@
     kinds?: string;
     maxItems?: string;
     showSearch?: boolean;
+    showTypeFilters?: boolean;
     showCategories?: boolean;
     showAuthor?: boolean;
     showOverlayChips?: boolean;
@@ -634,6 +639,7 @@
     if (typeof stored.kinds === 'string') kinds = stored.kinds;
     if (typeof stored.maxItems === 'string') maxItems = stored.maxItems;
     if (typeof stored.showSearch === 'boolean') showSearch = stored.showSearch;
+    if (typeof stored.showTypeFilters === 'boolean') showTypeFilters = stored.showTypeFilters;
     if (typeof stored.showCategories === 'boolean') showCategories = stored.showCategories;
     if (typeof stored.showAuthor === 'boolean') showAuthor = stored.showAuthor;
     if (typeof stored.showOverlayChips === 'boolean') showOverlayChips = stored.showOverlayChips;
@@ -696,6 +702,7 @@
     kinds = DEFAULT_FORM_STATE.kinds;
     maxItems = DEFAULT_FORM_STATE.maxItems;
     showSearch = DEFAULT_FORM_STATE.showSearch;
+    showTypeFilters = DEFAULT_FORM_STATE.showTypeFilters;
     showCategories = DEFAULT_FORM_STATE.showCategories;
     showAuthor = DEFAULT_FORM_STATE.showAuthor;
     showOverlayChips = DEFAULT_FORM_STATE.showOverlayChips;
@@ -806,6 +813,10 @@
     if (!config.showSearch) {
       attributes.push('showSearch="false"');
     }
+
+    if (config.showTypeFilters === false) {
+      attributes.push('showTypeFilters="false"');
+    }
     
     if (!config.showCategories) {
       attributes.push('showCategories="false"');
@@ -892,6 +903,9 @@
     }
     if (!config.showSearch) {
       widgetInstance.setAttribute('showSearch', 'false');
+    }
+    if (config.showTypeFilters === false) {
+      widgetInstance.setAttribute('showTypeFilters', 'false');
     }
     if (!config.showCategories) {
       widgetInstance.setAttribute('showCategories', 'false');
@@ -1004,6 +1018,7 @@
       kinds,
       maxItems,
       showSearch,
+      showTypeFilters,
       showCategories,
       showAuthor,
       showOverlayChips,
@@ -1456,6 +1471,13 @@
           <label>
             <input type="checkbox" bind:checked={showSearch} />
             Suchleiste anzeigen
+          </label>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label>
+            <input type="checkbox" bind:checked={showTypeFilters} />
+            Inhaltstyp-Buttons anzeigen
           </label>
         </div>
 
@@ -1996,6 +2018,5 @@
     }
   }
 </style>
-
 
 
