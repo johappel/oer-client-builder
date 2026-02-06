@@ -90,13 +90,15 @@ ${snippet}
   </div>
 
   <div class="layout">
-    <section class="panel">
-      <h2>Embed-Code</h2>
-      <textarea bind:value={code} rows="20" spellcheck="false"></textarea>
-    </section>
+    <details class="panel embed-accordion">
+      <summary>Embed-Code</summary>
+      <div class="embed-content">
+        <textarea bind:value={code} rows="20" spellcheck="false"></textarea>
+      </div>
+    </details>
 
-    <section class="panel">
-      <h2>Vorschau</h2>
+    <section class="panel preview-panel">
+      <h2>Vorschau (volle Breite)</h2>
       <iframe title="Widget Vorschau" srcdoc={iframeSrcdoc}></iframe>
     </section>
   </div>
@@ -104,9 +106,11 @@ ${snippet}
 
 <style>
   .test-page {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 20px;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 16px 20px;
+    box-sizing: border-box;
   }
 
   h1 {
@@ -154,7 +158,7 @@ ${snippet}
 
   .layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 14px;
   }
 
@@ -167,6 +171,28 @@ ${snippet}
     gap: 10px;
   }
 
+  .embed-accordion {
+    padding: 0;
+    overflow: hidden;
+  }
+
+  .embed-accordion summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 12px;
+    font-size: 16px;
+    font-weight: 700;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .embed-accordion summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .embed-content {
+    padding: 12px;
+  }
+
   .panel h2 {
     margin: 0;
     font-size: 16px;
@@ -174,7 +200,7 @@ ${snippet}
 
   textarea {
     width: 100%;
-    min-height: 580px;
+    min-height: 260px;
     font-family: "Courier New", monospace;
     font-size: 12px;
     line-height: 1.4;
@@ -187,15 +213,13 @@ ${snippet}
 
   iframe {
     width: 100%;
-    min-height: 580px;
+    min-height: 78vh;
     border: 1px solid #d1d5db;
     border-radius: 6px;
     background: #fff;
   }
 
-  @media (max-width: 1000px) {
-    .layout {
-      grid-template-columns: 1fr;
-    }
+  .preview-panel {
+    padding-bottom: 14px;
   }
 </style>

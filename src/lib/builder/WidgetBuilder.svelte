@@ -1,4 +1,4 @@
-<script lang="ts">
+﻿<script lang="ts">
   import { onMount } from 'svelte';
   import type { WidgetConfig } from '../nostr/types.js';
   import type { NostrFeedWidget as NostrFeedWidgetType } from '../widget/nostr-feed.js';
@@ -1048,7 +1048,7 @@
       applyStoredFormState(stored);
     }
     isClient = true;
-    // Dynamisch importieren für Browser-only
+    // Dynamisch importieren fÃ¼r Browser-only
     const module = await import('../widget/nostr-feed.js');
     NostrFeedWidget = module.NostrFeedWidget;
     console.log('[WidgetBuilder] NostrFeedWidget loaded');
@@ -1490,7 +1490,7 @@
             Auto (500ms)
           </label>
           <button class="reset-button" onclick={resetForm}>
-            Zurücksetzen
+            ZurÃ¼cksetzen
           </button>
         </div>
       </div>
@@ -1498,8 +1498,9 @@
     </div>
   </div>
   
-  <div class="code-section">
-    <h2>Generierter Code</h2>
+  <details class="code-section">
+  <summary>Generierter Embed-Code</summary>
+  <div class="code-section-content">
     <pre class="code-block">{generatedCode}</pre>
     <div class="code-actions">
       <button class="copy-button" onclick={copyToClipboard}>
@@ -1510,6 +1511,7 @@
       </button>
     </div>
   </div>
+</details>
 </div>
 
 <style>
@@ -1903,8 +1905,27 @@
   
   .code-section {
     background: #f9fafb;
-    padding: 20px;
     border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    overflow: hidden;
+  }
+
+  .code-section summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 12px 16px;
+    font-weight: 700;
+    color: #1f2937;
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .code-section summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .code-section-content {
+    padding: 16px;
   }
   
   .code-block {
@@ -1964,4 +1985,6 @@
     }
   }
 </style>
+
+
 
