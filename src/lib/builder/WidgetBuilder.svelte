@@ -295,16 +295,26 @@
       .filter((entry): entry is string[] => Array.isArray(entry));
   }
 
-  function buildManualTagFilters(rows: ManualTagRow[]): string[][] {
-    const grouped = new Map<string, Set<string>>();
+  function buildManualTagFilters(rows: ManualTagRow[]): { globalTags: string[][]; ambTags: string[][] } {
+    const groupedGlobal = new Map<string, Set<string>>();
+    const groupedAmb = new Map<string, Set<string>>();
+
     rows.forEach((row) => {
       const key = normalizeAmbFilterKey(row.key);
       const value = row.value.trim();
       if (!key || !value) return;
-      if (!grouped.has(key)) grouped.set(key, new Set<string>());
-      grouped.get(key)?.add(value);
+
+      const scope = key.trim().toLowerCase() === '#t' ? 'global' : row.scope;
+      const target = scope === 'global' ? groupedGlobal : groupedAmb;
+
+      if (!target.has(key)) target.set(key, new Set<string>());
+      target.get(key)?.add(value);
     });
-    return Array.from(grouped.entries()).map(([key, values]) => [key, ...Array.from(values)]);
+
+    return {
+      globalTags: Array.from(groupedGlobal.entries()).map(([key, values]) => [key, ...Array.from(values)]),
+      ambTags: Array.from(groupedAmb.entries()).map(([key, values]) => [key, ...Array.from(values)])
+    };
   }
 
   function buildCreatorTagFilters(): string[][] {
@@ -399,11 +409,11 @@
     const creator = buildCreatorTagFilters();
     const publisher = buildPublisherTagFilters();
 
-    const assistantFilters = mergeTagFilters([vocabulary, manual, creator, publisher]);
+    const assistantFilters = mergeTagFilters([vocabulary, creator, publisher, manual.ambTags]);
     const split = splitAssistantTagFilters(assistantFilters);
 
     return {
-      globalTags: mergeTagFilters([raw.filters, split.globalTags]),
+      globalTags: mergeTagFilters([raw.filters, split.globalTags, manual.globalTags]),
       ambTags: mergeTagFilters([split.ambTags]),
       error: raw.error
     };
@@ -498,7 +508,7 @@
     autoPreview?: boolean;
     calendarStartDate?: string;
     calendarEndDate?: string;
-    manualTagRows?: Array<{ key?: string; value?: string }>;
+    manualTagRows?: Array<{ key?: string; value?: string; scope?: 'global' | 'amb' }>;
     vocabularySources?: Array<{
       name?: string;
       tagKey?: string;
@@ -564,7 +574,8 @@
       manualTagRows = stored.manualTagRows.map((row) =>
         createManualTagRow(
           typeof row?.key === 'string' ? row.key : '#t',
-          typeof row?.value === 'string' ? row.value : ''
+          typeof row?.value === 'string' ? row.value : '',
+          row?.scope === 'global' || row?.scope === 'amb' ? row.scope : undefined
         )
       );
     }
@@ -762,6 +773,15 @@
     });
   }
   
+  // Keep #t scope consistent (always global)
+  $effect(() => {
+    manualTagRows.forEach((row) => {
+      if (normalizeAmbFilterKey(row.key).trim().toLowerCase() === '#t' && row.scope !== 'global') {
+        row.scope = 'global';
+      }
+    });
+  });
+
   // Update generated code on form changes
   $effect(() => {
     const config = parseFormState();
@@ -806,7 +826,7 @@
       autoPreview,
       calendarStartDate,
       calendarEndDate,
-      manualTagRows: manualTagRows.map((row) => ({ key: row.key, value: row.value })),
+      manualTagRows: manualTagRows.map((row) => ({ key: row.key, value: row.value, scope: row.scope })),
       vocabularySources: vocabularySources.map((source) => ({
         name: source.name,
         tagKey: source.tagKey,
@@ -963,8 +983,8 @@
 
           <h3>Manuelle Tag-Filter (Key/Value)</h3>
           <p class="hint">
-            Fuer eigene AMB/Nostr-Tag-Filter im Assistenten. Diese wirken auf `kind:30142`, nur `#t` wirkt global.
-            Gleicher Key wird intern zusammengefuehrt.
+            Fuer eigene AMB/Nostr-Tag-Filter im Assistenten mit Scope pro Zeile (`global` oder `nur 30142`).
+            `#t` wirkt immer global. Gleicher Key wird intern zusammengefuehrt.
           </p>
 
           {#if manualTagRows.length === 0}
@@ -979,6 +999,14 @@
                 {/each}
               </select>
               <input type="text" bind:value={row.value} placeholder="Wert" />
+              <select
+                bind:value={row.scope}
+                title="Scope"
+                disabled={normalizeAmbFilterKey(row.key).trim().toLowerCase() === '#t'}
+              >
+                <option value="amb">nur 30142</option>
+                <option value="global">global</option>
+              </select>
               <button type="button" class="small-button muted" onclick={() => removeManualTagRow(row.id)}>
                 Entfernen
               </button>
@@ -1373,7 +1401,7 @@
 
   .manual-row {
     display: grid;
-    grid-template-columns: 190px 1fr auto;
+    grid-template-columns: 190px 1fr 130px auto;
     gap: 8px;
     align-items: center;
   }
