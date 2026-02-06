@@ -201,6 +201,7 @@ export interface WidgetConfig {
   kinds: NostrEventKind[];
   authors: string[];
   tags: string[][];
+  ambTags?: string[][];
   calendarStartDate?: string;
   calendarEndDate?: string;
   search: string;

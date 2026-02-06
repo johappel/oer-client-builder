@@ -7,7 +7,7 @@
 import type { WidgetConfig, ParsedEvent, ProfileMetadata } from '../nostr/types.js';
 import { NostrClient } from '../nostr/client.js';
 import { parseEvent, enrichWithProfiles, extractProfiles } from '../nostr/parser.js';
-import { applyTwoLevelFilter, createFilterConfig, extractCategories, extractAuthors } from '../nostr/filter.js';
+import { applyTwoLevelFilter, createFilterConfig, extractCategories, extractAuthors, matchesAllFilters } from '../nostr/filter.js';
 import { normalizePubkey, encodeNaddr, encodeNprofile, decodeNaddrKind } from '../nostr/nip19.js';
 import { renderCard } from './card-renderers/index.js';
 
@@ -940,8 +940,21 @@ export class NostrFeedWidget extends HTMLElement {
     if (rawAuthors.length > 0 && authors.length === 0) {
       console.warn('[NostrFeedWidget] authors attribute provided but none could be parsed (expected hex or npub).', rawAuthors);
     }
-    const tagsAttr = this.getAttribute('tags');
-    const tags: string[][] = tagsAttr ? JSON.parse(tagsAttr) : [];
+
+    const parseFilterArray = (attrName: string): string[][] => {
+      const raw = this.getAttribute(attrName);
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        console.warn(`[NostrFeedWidget] Invalid JSON in "${attrName}" attribute.`);
+        return [];
+      }
+    };
+
+    const tags = parseFilterArray('tags');
+    const ambTags = parseFilterArray('ambTags');
     const search = this.getAttribute('search') || '';
     const categoriesAttr = this.getAttribute('categories');
     const categories = categoriesAttr ? JSON.parse(categoriesAttr) : [];
@@ -959,6 +972,7 @@ export class NostrFeedWidget extends HTMLElement {
       kinds,
       authors,
       tags,
+      ambTags: ambTags.length > 0 ? ambTags : undefined,
       calendarStartDate: calendarStartDate || undefined,
       calendarEndDate: calendarEndDate || undefined,
       search,
@@ -1090,15 +1104,24 @@ export class NostrFeedWidget extends HTMLElement {
   }
 
   private createFilters() {
-    const filters: any[] = [{ kinds: this.config.kinds, limit: this.config.maxItems }];
+    const normalizedKinds = Array.from(
+      new Set(
+        (Array.isArray(this.config.kinds) ? this.config.kinds : []).filter((kind) => Number.isFinite(kind))
+      )
+    );
 
-    if (this.config.authors.length > 0) {
-      filters[0].authors = this.config.authors;
-    }
+    const createBaseFilter = (kinds: number[]) => {
+      const filter: any = { kinds, limit: this.config.maxItems };
+      if (this.config.authors.length > 0) {
+        filter.authors = this.config.authors;
+      }
+      return filter;
+    };
 
-    if (this.config.tags.length > 0) {
+    const applyRelayTagFilters = (targetFilter: any, tagFilters: string[][]): void => {
+      if (!Array.isArray(tagFilters) || tagFilters.length === 0) return;
       const relayTagFilters: Record<string, string[]> = {};
-      this.config.tags.forEach((tagFilter) => {
+      tagFilters.forEach((tagFilter) => {
         if (!Array.isArray(tagFilter) || tagFilter.length < 2) return;
         const [rawKey, ...rawValues] = tagFilter;
         if (typeof rawKey !== 'string') return;
@@ -1113,8 +1136,34 @@ export class NostrFeedWidget extends HTMLElement {
       });
 
       Object.entries(relayTagFilters).forEach(([key, values]) => {
-        filters[0][key] = Array.from(new Set(values));
+        targetFilter[key] = Array.from(new Set(values));
       });
+    };
+
+    const filters: any[] = [];
+    const globalTags = Array.isArray(this.config.tags) ? this.config.tags : [];
+    const ambOnlyTags = Array.isArray(this.config.ambTags) ? this.config.ambTags : [];
+
+    const hasAmbKind = normalizedKinds.includes(30142);
+    const nonAmbKinds = normalizedKinds.filter((kind) => kind !== 30142);
+
+    if (nonAmbKinds.length > 0) {
+      const nonAmbFilter = createBaseFilter(nonAmbKinds);
+      applyRelayTagFilters(nonAmbFilter, globalTags);
+      filters.push(nonAmbFilter);
+    }
+
+    if (hasAmbKind) {
+      const ambFilter = createBaseFilter([30142]);
+      applyRelayTagFilters(ambFilter, [...globalTags, ...ambOnlyTags]);
+      filters.push(ambFilter);
+    }
+
+    if (filters.length === 0) {
+      const fallbackKinds = normalizedKinds.length > 0 ? normalizedKinds : [30142, 31922, 31923, 1, 30023, 0];
+      const fallback = createBaseFilter(fallbackKinds);
+      applyRelayTagFilters(fallback, globalTags);
+      filters.push(fallback);
     }
 
     return filters;
@@ -1295,8 +1344,11 @@ export class NostrFeedWidget extends HTMLElement {
     const selectedCategories = this.activeProfilePubkey ? [] : this.selectedCategories;
 
     // Filter anwenden
+    const globalTags = Array.isArray(this.config.tags) ? this.config.tags : [];
+    const ambOnlyTags = Array.isArray(this.config.ambTags) ? this.config.ambTags : [];
+
     const filterConfig = createFilterConfig(
-      this.config.tags,
+      globalTags,
       [],
       searchQuery,
       selectedCategories,
@@ -1307,6 +1359,13 @@ export class NostrFeedWidget extends HTMLElement {
       enrichWithProfiles(this.events, this.profiles),
       filterConfig
     );
+
+    if (ambOnlyTags.length > 0) {
+      filteredEvents = filteredEvents.filter((event) => {
+        if (event.type !== 'amb') return true;
+        return matchesAllFilters(event, ambOnlyTags);
+      });
+    }
 
     if (this.activeProfilePubkey) {
       filteredEvents = filteredEvents.filter((e) => e.type !== 'profile');

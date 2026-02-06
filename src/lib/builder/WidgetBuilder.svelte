@@ -24,6 +24,7 @@
     id: string;
     key: string;
     value: string;
+    scope: 'global' | 'amb';
   };
 
   const STORAGE_KEY = 'oer-client-builder:widget-builder-form:v2';
@@ -157,8 +158,13 @@
     return DEFAULT_VOCAB_PRESETS.map((preset) => createVocabularySource(preset));
   }
 
-  function createManualTagRow(key = '#t', value = ''): ManualTagRow {
-    return { id: createLocalId('manual'), key, value };
+  function createManualTagRow(
+    key = '#t',
+    value = '',
+    scope?: 'global' | 'amb'
+  ): ManualTagRow {
+    const normalizedScope = scope || (key.trim().toLowerCase() === '#t' ? 'global' : 'amb');
+    return { id: createLocalId('manual'), key, value, scope: normalizedScope };
   }
 
   function isRecord(value: unknown): value is Record<string, unknown> {
@@ -368,14 +374,37 @@
     return Array.from(grouped.entries()).map(([key, values]) => [key, ...Array.from(values)]);
   }
 
-  function buildEffectiveTagFilters(): { filters: string[][]; error: string } {
+  function splitAssistantTagFilters(filters: string[][]): { globalTags: string[][]; ambTags: string[][] } {
+    const globalTags: string[][] = [];
+    const ambTags: string[][] = [];
+
+    filters.forEach((entry) => {
+      const normalized = normalizeFilterEntry(entry);
+      if (!normalized) return;
+      const [key] = normalized;
+      if (key.trim().toLowerCase() === '#t') {
+        globalTags.push(normalized);
+        return;
+      }
+      ambTags.push(normalized);
+    });
+
+    return { globalTags, ambTags };
+  }
+
+  function buildEffectiveTagFilters(): { globalTags: string[][]; ambTags: string[][]; error: string } {
     const raw = parseRawTagFilters(rawTags);
     const vocabulary = buildVocabularyTagFilters(vocabularySources);
     const manual = buildManualTagFilters(manualTagRows);
     const creator = buildCreatorTagFilters();
     const publisher = buildPublisherTagFilters();
+
+    const assistantFilters = mergeTagFilters([vocabulary, manual, creator, publisher]);
+    const split = splitAssistantTagFilters(assistantFilters);
+
     return {
-      filters: mergeTagFilters([raw.filters, vocabulary, manual, creator, publisher]),
+      globalTags: mergeTagFilters([raw.filters, split.globalTags]),
+      ambTags: mergeTagFilters([split.ambTags]),
       error: raw.error
     };
   }
@@ -426,13 +455,14 @@
     const kindArray = kinds.split(',').map(k => parseInt(k.trim(), 10)).filter(k => !isNaN(k)) as any;
     const maxItemsNum = parseInt(maxItems, 10) || 50;
     
-    const { filters: tagsArray } = buildEffectiveTagFilters();
+    const { globalTags, ambTags } = buildEffectiveTagFilters();
     
     return {
       relays: relayArray,
       kinds: kindArray,
       authors: authorArray,
-      tags: tagsArray,
+      tags: globalTags,
+      ambTags: ambTags.length > 0 ? ambTags : undefined,
       calendarStartDate: calendarStartDate.trim() || undefined,
       calendarEndDate: calendarEndDate.trim() || undefined,
       search,
@@ -642,6 +672,10 @@
       attributes.push(`tags='${JSON.stringify(config.tags)}'`);
     }
 
+    if (config.ambTags && config.ambTags.length > 0) {
+      attributes.push(`ambTags='${JSON.stringify(config.ambTags)}'`);
+    }
+
     if (config.calendarStartDate) {
       attributes.push(`calendarStartDate="${config.calendarStartDate}"`);
     }
@@ -692,6 +726,9 @@
     if (config.tags.length > 0) {
       widgetInstance.setAttribute('tags', JSON.stringify(config.tags));
     }
+    if (config.ambTags && config.ambTags.length > 0) {
+      widgetInstance.setAttribute('ambTags', JSON.stringify(config.ambTags));
+    }
     if (config.calendarStartDate) {
       widgetInstance.setAttribute('calendarStartDate', config.calendarStartDate);
     }
@@ -733,9 +770,16 @@
 
   // Effective tags preview
   $effect(() => {
-    const { filters, error } = buildEffectiveTagFilters();
+    const { globalTags, ambTags, error } = buildEffectiveTagFilters();
     tagJsonError = error;
-    effectiveTagsPreview = JSON.stringify(filters, null, 2);
+    effectiveTagsPreview = JSON.stringify(
+      {
+        tags: globalTags,
+        ambTags
+      },
+      null,
+      2
+    );
   });
 
   // Persist form state
@@ -844,8 +888,8 @@
         <div class="accordion-content">
           <h3>Vocabulary-basierte Filter</h3>
           <p class="hint">
-            URL + Tag-Key angeben, Vocabulary laden und Begriffe auswaehlen. Die Auswahl wird in das
-            `tags`-Array uebernommen.
+            URL + Tag-Key angeben, Vocabulary laden und Begriffe auswaehlen. Diese Filter gelten fuer
+            `kind:30142` (AMB). Ausnahme: `#t` gilt global fuer alle ausgewaehlten Kinds.
           </p>
 
           <datalist id="tag-key-suggestions">
@@ -918,7 +962,10 @@
           </button>
 
           <h3>Manuelle Tag-Filter (Key/Value)</h3>
-          <p class="hint">Fuer eigene AMB/Nostr-Tag-Filter. Gleicher Key wird intern zusammengefuehrt.</p>
+          <p class="hint">
+            Fuer eigene AMB/Nostr-Tag-Filter im Assistenten. Diese wirken auf `kind:30142`, nur `#t` wirkt global.
+            Gleicher Key wird intern zusammengefuehrt.
+          </p>
 
           {#if manualTagRows.length === 0}
             <small>Noch keine manuellen Filter vorhanden.</small>
@@ -1058,7 +1105,7 @@
       </details>
 
       <div class="form-group">
-        <div class="form-label">Aktives Tags-Array (generiert)</div>
+        <div class="form-label">Aktive Tag-Filter (generiert)</div>
         <pre class="code-preview">{effectiveTagsPreview}</pre>
       </div>
       
