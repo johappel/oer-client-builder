@@ -30,6 +30,7 @@
   type BuilderTab = 'general' | 'filters' | 'design';
 
   const STORAGE_KEY = 'oer-client-builder:widget-builder-form:v2';
+  const GENERATED_CODE_STORAGE_KEY = 'oer-client-builder:widget-builder-generated-code:v1';
   const TAG_KEY_SUGGESTIONS: string[] = [
     '#creator:id',
     '#creator:name',
@@ -841,8 +842,13 @@
     
     attributes.push('maxItems="' + config.maxItems + '"');
     
+    const scriptUrl =
+      typeof window !== 'undefined'
+        ? `${window.location.origin}/src/lib/widget/nostr-feed.ts`
+        : '/src/lib/widget/nostr-feed.ts';
+
     return `<!-- Nostr Feed Widget -->
-<script type="module" src="https://your-domain.com/nostr-feed.js"><\/script>
+<script type="module" src="${scriptUrl}"><\/script>
 <nostr-feed ${attributes.join(' ')}></nostr-feed>`;
   }
   
@@ -920,6 +926,15 @@
       console.error('Fehler beim Kopieren:', err);
     });
   }
+
+  function openTestPage(): void {
+    try {
+      localStorage.setItem(GENERATED_CODE_STORAGE_KEY, generatedCode);
+    } catch {
+      // ignore
+    }
+    window.open('/test', '_blank');
+  }
   
   // Keep #t scope consistent (always global)
   $effect(() => {
@@ -934,6 +949,16 @@
   $effect(() => {
     const config = parseFormState();
     generatedCode = generateCode(config);
+  });
+
+  // Persist generated code for test page
+  $effect(() => {
+    if (!isClient) return;
+    try {
+      localStorage.setItem(GENERATED_CODE_STORAGE_KEY, generatedCode);
+    } catch {
+      // ignore
+    }
   });
 
   // Effective tags preview
@@ -1476,9 +1501,14 @@
   <div class="code-section">
     <h2>Generierter Code</h2>
     <pre class="code-block">{generatedCode}</pre>
-    <button class="copy-button" onclick={copyToClipboard}>
-      Code kopieren
-    </button>
+    <div class="code-actions">
+      <button class="copy-button" onclick={copyToClipboard}>
+        Code kopieren
+      </button>
+      <button class="copy-button secondary" onclick={openTestPage}>
+        Auf Testseite öffnen
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1903,6 +1933,21 @@
   
   .copy-button:hover {
     background: #6b21a8;
+  }
+
+  .copy-button.secondary {
+    background: #e5e7eb;
+    color: #111827;
+  }
+
+  .copy-button.secondary:hover {
+    background: #d1d5db;
+  }
+
+  .code-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
   @media (max-width: 700px) {
