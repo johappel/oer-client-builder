@@ -514,12 +514,12 @@
     const kindArray = kinds.split(',').map(k => parseInt(k.trim(), 10)).filter(k => !isNaN(k)) as any;
     const pageSizeNum = parseInt(pageSize, 10);
     const loadMoreStepNum = parseInt(loadMoreStep, 10);
-    const effectivePageSize = Number.isFinite(pageSizeNum) && pageSizeNum > 0 ? pageSizeNum : 24;
+    const effectivePageSize = Number.isFinite(pageSizeNum) && pageSizeNum > 0 ? pageSizeNum : 10;
     const legacyStaleLoadMoreStep =
-      loadMoreStep.trim() === '24' &&
+      loadMoreStep.trim() === '10' &&
       Number.isFinite(pageSizeNum) &&
       pageSizeNum > 0 &&
-      pageSizeNum !== 24;
+      pageSizeNum !== 10;
     const effectiveLoadMoreStep =
       Number.isFinite(loadMoreStepNum) && loadMoreStepNum > 0 && !legacyStaleLoadMoreStep
         ? loadMoreStepNum
@@ -642,8 +642,8 @@
     if (typeof stored.pageSize === 'string') pageSize = stored.pageSize;
     if (typeof stored.loadMoreStep === 'string') {
       const isLegacyDefault =
-        stored.loadMoreStep.trim() === '24' &&
-        (typeof stored.pageSize !== 'string' || stored.pageSize.trim() !== '24');
+        stored.loadMoreStep.trim() === '10' &&
+        (typeof stored.pageSize !== 'string' || stored.pageSize.trim() !== '10');
       loadMoreStep = isLegacyDefault ? '' : stored.loadMoreStep;
     }
     if (typeof stored.accentColor === 'string') accentColor = stored.accentColor;

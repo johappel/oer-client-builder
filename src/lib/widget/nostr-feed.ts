@@ -990,7 +990,7 @@ export class NostrFeedWidget extends HTMLElement {
     const showOverlayChips = this.getAttribute('showOverlayChips') !== 'false';
     const showKeywords = this.getAttribute('showKeywords') !== 'false';
     const showLoadMore = this.getAttribute('showLoadMore') !== 'false';
-    const pageSize = this.parsePositiveInt(this.getAttribute('pageSize'), 24);
+    const pageSize = this.parsePositiveInt(this.getAttribute('pageSize'), 10);
     const loadMoreStep = this.parsePositiveInt(this.getAttribute('loadMoreStep'), pageSize);
     const accentColor = this.normalizeHexColor(this.getAttribute('accentColor') || '') || undefined;
     const cardMinWidth = this.parsePositiveInt(this.getAttribute('cardMinWidth'), 280);
@@ -1087,12 +1087,12 @@ export class NostrFeedWidget extends HTMLElement {
   }
 
   private resetPagination(): void {
-    const pageSize = Math.max(1, this.config.pageSize || 24);
+    const pageSize = Math.max(1, this.config.pageSize || 10);
     this.displayedCount = pageSize;
   }
 
   private showNextPage(): void {
-    const step = Math.max(1, this.config.loadMoreStep || this.config.pageSize || 24);
+    const step = Math.max(1, this.config.loadMoreStep || this.config.pageSize || 10);
     this.displayedCount += step;
     this.renderGrid();
   }
