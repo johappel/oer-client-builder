@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { dev } from '$app/environment';
+  import { base } from '$app/paths';
 
   const GENERATED_CODE_STORAGE_KEY = 'oer-client-builder:widget-builder-generated-code:v1';
 
@@ -7,9 +9,18 @@
   let iframeSrcdoc = $state('');
   let lastRunLabel = $state('');
 
+  function withBasePath(path: string): string {
+    return `${base}${path}` || path;
+  }
+
+  function resolveEmbedScriptUrl(origin?: string): string {
+    const localPath = dev ? '/src/lib/widget/nostr-feed.ts' : withBasePath('/nostr-feed.js');
+    return origin ? `${origin}${localPath}` : localPath;
+  }
+
   function defaultCode(origin: string): string {
     return `<!-- Nostr Feed Widget -->
-<script type="module" src="${origin}/src/lib/widget/nostr-feed.ts"><\/script>
+<script type="module" src="${resolveEmbedScriptUrl(origin)}"><\/script>
 <nostr-feed
   relays="wss://relay.edufeed.org,wss://relay-rpi.edufeed.org,wss://amb-relay.edufeed.org"
   kinds="30142,31922,31923,1,30023"
@@ -83,7 +94,7 @@ ${snippet}
     <button type="button" onclick={runSnippet}>Vorschau aktualisieren</button>
     <button type="button" class="secondary" onclick={loadFromStorage}>Aus Builder laden</button>
     <button type="button" class="secondary" onclick={resetToDefault}>Default-Code</button>
-    <a href="/" class="link-button">Zum Builder</a>
+    <a href={withBasePath('/')} class="link-button">Zum Builder</a>
     {#if lastRunLabel}
       <span class="run-info">Letzter Lauf: {lastRunLabel}</span>
     {/if}

@@ -1,5 +1,7 @@
 ﻿<script lang="ts">
   import { onMount } from 'svelte';
+  import { dev } from '$app/environment';
+  import { base } from '$app/paths';
   import type { WidgetConfig } from '../nostr/types.js';
   import type { NostrFeedWidget as NostrFeedWidgetType } from '../widget/nostr-feed.js';
   
@@ -139,6 +141,15 @@
   function createLocalId(prefix: string): string {
     localIdCounter += 1;
     return `${prefix}-${localIdCounter}`;
+  }
+
+  function withBasePath(path: string): string {
+    return `${base}${path}` || path;
+  }
+
+  function resolveEmbedScriptUrl(origin?: string): string {
+    const localPath = dev ? '/src/lib/widget/nostr-feed.ts' : withBasePath('/nostr-feed.js');
+    return origin ? `${origin}${localPath}` : localPath;
   }
 
   function normalizeAmbFilterKey(input: string): string {
@@ -844,8 +855,8 @@
     
     const scriptUrl =
       typeof window !== 'undefined'
-        ? `${window.location.origin}/src/lib/widget/nostr-feed.ts`
-        : '/src/lib/widget/nostr-feed.ts';
+        ? resolveEmbedScriptUrl(window.location.origin)
+        : resolveEmbedScriptUrl();
 
     return `<!-- Nostr Feed Widget -->
 <script type="module" src="${scriptUrl}"><\/script>
@@ -933,7 +944,7 @@
     } catch {
       // ignore
     }
-    window.open('/test', '_blank');
+    window.open(withBasePath('/test'), '_blank');
   }
   
   // Keep #t scope consistent (always global)

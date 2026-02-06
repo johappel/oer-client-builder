@@ -30,7 +30,7 @@
         console.log('[Test] Loading widget...');
         
         // Import the widget
-        import('/src/lib/widget/nostr-feed.js').then(module => {
+        import('./nostr-feed.js').then(module => {
             console.log('[Test] Widget loaded:', module);
         }).catch(err => {
             console.error('[Test] Failed to load widget:', err);
