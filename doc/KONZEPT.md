@@ -158,12 +158,7 @@ Wenn ein Relay NIP-50 nicht unterstützt, sollte das Widget:
 3. Den Nutzer über die eingeschränkte Suche informieren
 
 **Widget Konfiguration:**
-```html
-<nostr-feed
-  enable-nip50-search="true"  <!-- Optional: NIP-50 aktivieren -->
-  fallback-search="true"      <!-- Client-seitige Suche als Fallback -->
-></nostr-feed>
-```
+> Status: Noch nicht implementiert (Stand 2026-02-05). Aktuell läuft die Suche client-seitig über das Attribut `search`.
 
 ### Referenz-Implementierungen
 
@@ -181,7 +176,7 @@ Ein Institut möchte nur Inhalte zu religiösen Themen anzeigen. Konfiguration:
 ```html
 <nostr-feed
   authors="npub1...,npub2..."  <!-- Nur bestimmte Publisher -->
-  kinds="30142,31922,30023"
+  kinds="30142,31922,31923,30023,1,0"
   tags='[
     ["#about:id","http://w3id.org/kim/schulfaecher/s1055"],
     ["#about:id","http://w3id.org/kim/schulfaecher/s1024"],
@@ -191,9 +186,10 @@ Ein Institut möchte nur Inhalte zu religiösen Themen anzeigen. Konfiguration:
     ["#about:id","http://w3id.org/kim/schulfaecher/s1056"],
     ["#about:id","http://w3id.org/kim/schulfaecher/s1021"]
   ]'
-  show-amb-filters="true"
 ></nostr-feed>
 ```
+
+> Hinweis: `tags` werden aktuell client-seitig gefiltert; nur `#t` wird zusätzlich als Relay-Filter (`#t`) in der REQ-Subscription genutzt.
 
 **Verwendete Fach-URIs (aus Schulfächer-Vokabular):**
 
@@ -256,25 +252,28 @@ Geladene Vokabulare:
 
 | Option | Typ | Beschreibung |
 |--------|-----|-------------|
-| `authors` | string[] | Liste von npubs zur Vorfilterung |
-| `kinds` | number[] | Event-Kinds (0,1,30023,30142,31922,31923) |
-| `tags` | string[] | Nostr Tags zur Vorfilterung |
-| `relays` | string[] | Relay URLs |
-| `searchPlaceholder` | string | Platzhaltertext für Suche |
-| `itemsPerPage` | number | Anzahl Items pro Seite |
-| `theme` | string | 'light', 'dark', 'auto' |
-| `filterOptions` | object | AMB-spezifische Filter (about, educationalLevel, etc.) |
+| `authors` | string | Komma-separierte `npub`/hex (Vorfilter) |
+| `kinds` | string | Komma-separierte Kind-Nummern (z.B. `30142,31922,31923,1,30023,0`) |
+| `tags` | string | JSON Array für Vorfilter (Widget-Attribut `tags`) |
+| `relays` | string | Komma-separierte Relay URLs |
+| `search` | string | Initialer Suchbegriff (Client-seitig) |
+| `categories` | string | JSON Array der ausgewählten Kategorien (optional) |
+| `maxItems` | string | Maximale Anzahl Events (Relay-Limit) |
+| `showSearch` | string | `true/false` – Suchleiste anzeigen |
+| `showCategories` | string | `true/false` – Kategorien anzeigen |
+| `showAuthor` | string | `true/false` – Autor/Avatar im Footer anzeigen |
+| `theme` | string | `light`, `dark`, `auto` |
+| `language` | string | UI-Sprache (z.B. `de`) |
 
 ### Widget Komponenten
 
 | Komponente | Beschreibung |
 |------------|-------------|
 | **Feed Grid** | Responsive Grid mit Event Cards |
-| **Vorfilter-Anzeige** | Zeigt vom Institut voreingestellte Filter (nicht entfernbar) |
-| **Suchleiste** | Text-basierte Filtersuche + NIP-50 (Client-seitig) |
-| **Zusatz-Filter** | Anklickbare Tag-Filter für Endnutzer (Fächer, Stufen, etc.) |
-| **Profil-Modal** | Autor-Details mit allen Beiträgen |
-| **Detail-Modal** | Vollständige Event-Ansicht |
+| **Suchleiste** | Text-basierte Filtersuche (kommagetrennte Begriffe = ODER-Suche) |
+| **Kategorie-Chips** | Anklickbare `t`-Tags als Filter |
+| **Profil-Ansicht** | Ansichtswechsel (kein Modal) mit „Zurück zur Übersicht“ + Inhaltsliste |
+| **Detail-Modal** | Event-Details (OER/Calendar/Artikel/Note) |
 
 ---
 
@@ -599,14 +598,17 @@ widget/
 ```html
 <script src="https://cdn.example.com/nostr-feed.js"></script>
 <nostr-feed
+  relays="wss://relay.edufeed.org,wss://relay-rpi.edufeed.org,wss://amb-relay.edufeed.org"
+  kinds="30142,31922,31923,1,30023,0"
   authors="npub1...,npub2..."
-  kinds="0,1,30023,30142,31922,31923"
   tags='[["#t","education"],["#about:id","http://w3id.org/..."]]'
-  relays="wss://relay.edufeed.org,wss://relay-rpi.edufeed.org"
-  theme="light"
-  items-per-page="12"
-  search-placeholder="Materialien durchsuchen..."
-  show-amb-filters="true"
+  search="religion, foerbico"
+  maxItems="50"
+  showSearch="true"
+  showCategories="true"
+  showAuthor="true"
+  theme="auto"
+  language="de"
 ></nostr-feed>
 ```
 
@@ -614,16 +616,18 @@ widget/
 
 | Prop | Typ | Default | Beschreibung |
 |------|-----|---------|--------------|
-| `authors` | string | '' | Komma-separierte npubs |
-| `kinds` | string | '30142' | Komma-separierte Kind-Nummern |
+| `authors` | string | '' | Komma-separierte `npub`/hex |
+| `kinds` | string | '30142,31922,31923,1,30023,0' | Komma-separierte Kind-Nummern |
 | `tags` | string | '[]' | JSON-Array von Tag-Filtern |
-| `relays` | string | 'wss://relay.edufeed.org' | Komma-separierte Relay-URLs |
-| `theme` | string | 'auto' | 'light', 'dark', 'auto' |
-| `items-per-page` | string | '12' | Anzahl Items pro Seite |
-| `search-placeholder` | string | 'Suchen...' | Platzhaltertext für Suche |
-| `show-amb-filters` | string | 'false' | AMB-Filter anzeigen |
-| `enable-nip50-search` | string | 'false' | NIP-50 Volltextsuche aktivieren |
-| `fallback-search` | string | 'true' | Client-seitige Suche als Fallback |
+| `relays` | string | '' | Komma-separierte Relay-URLs |
+| `search` | string | '' | Suchbegriff (kommagetrennt = ODER-Suche) |
+| `categories` | string | '[]' | JSON Array der Kategorien (optional) |
+| `maxItems` | string | '50' | Maximale Anzahl Events |
+| `showSearch` | string | 'true' | Suchleiste anzeigen |
+| `showCategories` | string | 'true' | Kategorien anzeigen |
+| `showAuthor` | string | 'true' | Autor/Avatar anzeigen |
+| `theme` | string | 'auto' | `light`, `dark`, `auto` |
+| `language` | string | 'de' | UI-Sprache |
 
 ---
 
@@ -656,21 +660,13 @@ widget/
 ## Dateien
 
 ### Builder App
-- `src/routes/+page.svelte` - Hauptseite
-- `src/lib/components/ConfigForm.svelte` - Konfigurationsformular
-- `src/lib/components/AMBFilterSection.svelte` - AMB-Filter
-- `src/lib/components/LivePreview.svelte` - Live-Vorschau
-- `src/lib/components/CodeOutput.svelte` - Code-Generator
-- `src/lib/stores/config.svelte.ts` - Konfigurations-Store
-- `src/lib/utils/amb.ts` - AMB Utilities
+- `src/routes/+page.svelte` - Hauptseite (Builder)
+- `src/lib/builder/WidgetBuilder.svelte` - Konfigurationsformular + Live-Vorschau + Code-Generator
 
 ### Widget
-- `widget/src/index.ts` - Entry Point
-- `widget/src/NostrFeed.ts` - Hauptklasse
-- `widget/src/parsers/amb.ts` - AMB Parser
-- `widget/src/components/FeedGrid.ts` - Grid-Komponente
-- `widget/src/utils/nostr.ts` - Nostr Client
-- `widget/dist/nostr-feed.js` - Build Output
+- `src/lib/widget/nostr-feed.ts` - Web Component (Shadow DOM) + UI/State
+- `src/lib/widget/card-renderers/*` - Renderer pro Kind (Default/Calendar/AMB)
+- `src/lib/nostr/*` - Client, Parser, Filter, Types, NIP-19 Helper
 
 ---
 

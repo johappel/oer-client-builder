@@ -13,6 +13,9 @@
 - `src/lib/nostr/parser.ts`: Kind-spezifische Calendar-Parser für 31922/31923 (Date vs. Unix seconds) + `kind -> parser` Registry
 - `src/lib/nostr/types.ts`: `CalendarEvent` erweitert (title/content, TZ-Felder, strukturierte Participants)
 - `src/lib/nostr/filter.ts`: Suche für Calendar-Events nutzt `title`/`content`/`location`
+- `src/lib/widget/card-renderers/*`: Renderer pro Kind (Default, Calendar, AMB/OER) + gemeinsames Footer-Layout (Avatar links, „Öffnen →“ rechts)
+- `src/lib/widget/nostr-feed.ts`: Profil-Ansicht als View (mit „Zurück zur Übersicht“ + Filter Alle/Termine/Materialien); Detail-Modal bleibt nur für Event-Details
+- `src/lib/widget/nostr-feed.ts`: Theme über CSS Custom Properties (light/dark/auto inkl. `prefers-color-scheme`) + Placeholder-Glow bei fehlendem Bild + „NO IMAGE“ entfernt
 
 ## 2026-02-04 - MVP Implementierung ✅
 

@@ -1,87 +1,91 @@
 # Nostr Feed Widget Builder - Aufgabenliste
 
+**Stand:** 2026-02-05  
+**Hinweis:** Detaillierte Umsetzungen pro Teilaufgabe stehen in `tasks/*.md`.
+
 ## Phase 1: Setup und Grundstruktur
 
 ### 1.1 Projekt-Setup
-- [ ] SvelteKit Projekt initialisieren mit `npx sv create`
-- [ ] Tailwind CSS konfigurieren
-- [ ] TypeScript konfigurieren
-- [ ] Ordnerstruktur erstellen
+- [x] SvelteKit Projekt initialisieren mit `npx sv create`
+- [x] Tailwind CSS konfigurieren
+- [x] TypeScript konfigurieren
+- [x] Ordnerstruktur erstellen
 
 ### 1.2 Widget-Setup
-- [ ] Widget-Projektstruktur erstellen
-- [ ] TypeScript Konfiguration
-- [ ] Build-System (Vite) einrichten
+- [x] Widget-Projektstruktur erstellen
+- [x] TypeScript Konfiguration
+- [x] Build-System (Vite) einrichten
 
 ---
 
 ## Phase 2: Widget Entwicklung (Vanilla JS)
 
 ### 2.1 Core Architektur
-- [ ] Hauptklasse `NostrFeed` erstellen
-- [ ] WebSocket-Manager implementieren
-- [ ] Event-Buffer und State Management
-- [ ] Configuration-Handler
+- [x] Hauptklasse `NostrFeedWidget` erstellen
+- [x] WebSocket-Manager implementieren (Multi-Relay Client)
+- [x] Event-Buffer und State Management
+- [x] Configuration-Handler (Attribute → Config)
 
 ### 2.2 Nostr Integration
-- [ ] WebSocket-Client für Relays
-- [ ] Nostr Filter Builder
-- [ ] Event Parser für alle Kinds:
-  - [ ] Kind 0: Profile
-  - [ ] Kind 1: Text Notes
-  - [ ] Kind 30023: Articles
-  - [ ] Kind 30142: OER Materials
-  - [ ] Kind 31922: Date-based Events
-  - [ ] Kind 31923: Time-based Events
-  - [ ] Calendar (NIP-52): wichtige Felder aus `tags` extrahieren (`title`, `start`, `end`, `start_tzid/start_tz`, `end_tzid/end_tz`, `image`, `location`, `d`) und pro Kind eigenen Parser verwenden
-  - [x] Kind-Spezifika UI: Calendar braucht `start` (optional `end`), Ã–ffnen-Link Ã¼ber `nostr:` URI (naddr/nevent), Profile-Ansicht fÃ¼r Personen + OER-SchlÃ¼sselmetadaten im Klartext
-- [ ] Profile-Caching System
+- [x] WebSocket-Client für Relays
+- [x] Nostr Filter Builder
+- [x] Event Parser für alle Kinds:
+  - [x] Kind 0: Profile
+  - [x] Kind 1: Text Notes
+  - [x] Kind 30023: Articles (Long-form)
+  - [x] Kind 30142: OER Materials (AMB)
+  - [x] Kind 31922: Date-based Events
+  - [x] Kind 31923: Time-based Events
+  - [x] Calendar (NIP-52): wichtige Felder aus `tags` extrahieren (`title`, `start`, `end`, `start_tzid/start_tz`, `end_tzid/end_tz`, `image`, `location`, `d`, `r`) und pro Kind eigenen Parser verwenden
+  - [x] Kind-Spezifika: Pflichtfelder + Öffnen-Link (Browser-kompatibel via `https://njump.edufeed.org/...`), Kanban-Boards via `https://kanban.edufeed.org/cardsboard/...`
+- [x] Profile-Caching System (Kind 0 lazy nachladen + Cache)
 
 ### 2.3 UI Komponenten
 
 #### Feed Grid
-- [ ] Grid-Layout Komponente
-- [ ] Responsive Design (Mobile, Tablet, Desktop)
-- [ ] Loading States
-- [ ] Empty State
+- [x] Grid-Layout Komponente
+- [x] Responsive Design (Mobile, Tablet, Desktop)
+- [x] Loading States
+- [x] Empty State
 - [ ] Pagination / Infinite Scroll
 
 #### Event Cards
-- [ ] OER Material Card
-- [ ] Calendar Event Card
-- [ ] Article Card
-- [ ] Text Note Card
-- [ ] Hover-Effects und Animationen
+- [x] OER Material Card (Kind 30142, eigener Renderer)
+- [x] Calendar Event Card (Kind 31922/31923, eigener Renderer)
+- [x] Article Card (Kind 30023)
+- [x] Text Note Card (Kind 1)
+- [x] Hover-Effects und Animationen (basic)
 
 #### Search & Filter
 - [ ] Suchleiste mit Autocomplete
-- [ ] Kategorie-Tags Filter
+- [x] Suchleiste (kommagetrennte Begriffe = ODER-Suche)
+- [x] Kategorie-Tags Filter
 - [ ] Kind-Filter
 - [ ] Clear All Button
 - [ ] Aktive Filter Anzeige
 
-#### Modals
-- [ ] Profile Modal
-  - [ ] Avatar, Name, Bio
-  - [ ] Social Links
-  - [ ] Alle Beiträge des Authors
-- [ ] Detail Modal
-  - [ ] OER: Vollständige Material-Info
-  - [ ] Calendar: Event-Details + RSVP
-  - [ ] Article: Vollständiger Artikel
-  - [ ] Text Note: Thread-Ansicht
+#### Views & Modals
+- [x] Profile View (Ansichtswechsel, kein Modal)
+  - [x] Header (Banner, Avatar, Name, Pubkey/NIP-05)
+  - [x] Zurück zur Übersicht
+  - [x] Filter: Alle / Termine / Materialien
+- [x] Detail Modal (Detailansicht bleibt Modal)
+  - [x] OER: Schlüsselmetadaten, Lizenz (nur im Modal), `d`-Link, `r`-Referenzen
+  - [x] Calendar: Event-Details + Online/Location-Link
+  - [x] Article/Text Note: Inhalte/Metadaten
+  - [ ] RSVP / Thread-Ansicht (optional)
 
 ### 2.4 Styling
-- [ ] CSS Custom Properties (Theming)
-- [ ] Light/Dark Mode
-- [ ] Responsive Breakpoints
-- [ ] Animationen und Transitions
+- [x] CSS Custom Properties (Theming)
+- [x] Light/Dark/Auto Theme
+- [x] Responsive Breakpoints
+- [x] Animationen und Transitions (basic)
 - [ ] Print Styles
 
 ### 2.5 Utilities
-- [ ] Date/Time Formatter
+- [x] Date/Time Formatter
 - [ ] Markdown Renderer (sanitized)
-- [ ] URL Parser
+- [x] URL Parser (inkl. `nostr:` → Browser-Links)
 - [ ] Image Lazy Loading
 - [ ] Intersection Observer
 
@@ -90,30 +94,32 @@
 ## Phase 3: Builder App Entwicklung (Svelte 5)
 
 ### 3.1 Core Setup
-- [ ] Routes erstellen
-- [ ] Layouts definieren
-- [ ] Stores initialisieren
+- [x] Routes erstellen
+- [x] Layouts definieren
+- [x] Builder State (Svelte 5 Runes)
 
 ### 3.2 Components
 
 #### ConfigForm.svelte
-- [ ] Relay-Eingabe (mit Validierung)
-- [ ] Authors-Eingabe (npub Validierung)
+- [x] Relay-Eingabe (basic)
+- [x] Authors-Eingabe (npub/hex)
+- [x] Kinds-Eingabe (kommasepariert)
+- [x] Tags-Eingabe (JSON Array)
+- [x] Theme-Auswahl
+- [ ] Relay/Inputs Validierung (optional)
 - [ ] Kinds-Auswahl (Checkboxes)
-- [ ] Tags-Eingabe (Key-Value Paare)
-- [ ] Theme-Auswahl
 - [ ] Items per Page Slider
 - [ ] Custom CSS Input
 
 #### LivePreview.svelte
-- [ ] Eingebettetes Widget
+- [x] Eingebettetes Widget
 - [ ] Device Preview Toggle (Mobile/Desktop)
-- [ ] Refresh Button
-- [ ] Loading State
+- [x] Refresh/Apply Button
+- [x] Loading State (basic)
 
 #### CodeOutput.svelte
 - [ ] Syntax Highlighting
-- [ ] Copy Button
+- [x] Copy Button
 - [ ] Download als HTML
 - [ ] Share Link
 
